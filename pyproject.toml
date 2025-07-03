@@ -1,0 +1,10 @@
+[project]
+name = "2-llm-modelisation"
+version = "0.1.0"
+description = "Partie de modélisation LLM : configuration, personnalisation et intégration d’un modèle de langage large (LLM) afin de permettre l’analyse, l’indexation et le traitement avancé des documents collectés lors du scraping."
+authors = ["Malek BOUMEDINE <malek.boumedine@gmail.com>"]
+keywords = ["scraping", "data", "LLM", "RAG"]
+licence = "MIT"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
