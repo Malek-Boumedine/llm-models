@@ -7,4 +7,6 @@ keywords = ["scraping", "data", "LLM", "RAG"]
 licence = "MIT"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "dotenv>=0.9.9",
+]
