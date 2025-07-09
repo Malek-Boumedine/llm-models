@@ -36,7 +36,7 @@ excel_documents = load_excel_files(files_path)
 
 # chunks pour la liste des idcc
 
-idcc_ape_col_name = "idcc_ape"
+idcc_ape_col_name = "idcc_ape_collection"
 idcc_ape_collection = client.get_or_create_collection(name = idcc_ape_col_name, embedding_function=embedding_function)
 
 idcc_text = [d for d in pdf_documents if d["file"] == "IDCC_liste.pdf"]
@@ -77,7 +77,7 @@ if idcc_excel_doc :
 
 # chunks pour le code du travail
 
-code_travail_col_name = "idcc_ape"
+code_travail_col_name = "code_travail_collection"
 code_travail_collection = client.get_or_create_collection(name = code_travail_col_name, embedding_function=embedding_function)
 
 code_travail_text = [d for d in pdf_documents if d["file"] == "code_du_travail.pdf"]
