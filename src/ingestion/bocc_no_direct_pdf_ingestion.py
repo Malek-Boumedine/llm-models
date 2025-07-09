@@ -1,12 +1,12 @@
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-from src.utils import load_pdf_files, chunk_and_insert_pdf_file
+from src.utils import  load_pdf_files, chunk_and_insert_pdf_file
 
 import chromadb
 from chromadb.utils import embedding_functions as ef
+from chromadb.api.models.Collection import Collection
 os.environ["CHROMA_ENABLE_TELEMETRY"] = "False"
-
 
 
 
@@ -24,50 +24,51 @@ embedding_function = ef.SentenceTransformerEmbeddingFunction(model_name = embedd
 
 # ==============================================================================================================
 
-files_path = os.path.join("../1.scraping_data/data/conventions_etendues/")
-pdf_documents = load_pdf_files(files_path)
+# script_dir = os.path.dirname(os.path.abspath(__file__))
+# bocc_pdf_path = os.path.join(script_dir, "../1.scraping_data/data/BOCC_pdf_direct_link/")
 
-print(len(pdf_documents))
+bocc_no_pdf_path = os.path.join("../1.scraping_data/data/BOCC_no_pdf_direct_link/")
+bocc_no_pdf_documents = load_pdf_files(bocc_no_pdf_path)
+print(len(bocc_no_pdf_documents))   # 312
 
 # ==============================================================================================================
 
-# chunk et embedding de toutes les conventions étendues
+# chunk et embedding de tous les bulletins officiels des conventions étendues
 
-def ingestion_conventions_etendues(
-    pdf_path: str = files_path,
-    collection_name: str = "conventions_etendues",
-    embedding_model: str = embedding_model,
-    separators: list[str] = ["\n\n", "\nArticle ", "\nChapitre", "\nSection", "\n", " "]) -> int:
-    pdf_documents = load_pdf_files(pdf_path)
-    
-    embedding_function = ef.SentenceTransformerEmbeddingFunction(model_name=embedding_model)
-    conventions_etendues_collection = client.get_or_create_collection(name=collection_name, embedding_function=embedding_function)
+collection_name = "bocc"
+bocc_collection = client.get_or_create_collection(name=collection_name, embedding_function=embedding_function)
+separators = ["\n\n", "\nArticle ", "\nChapitre", "\nSection", "\n", " "]
 
-    try:
-        if not pdf_documents:
+
+def ingest_no_direct_pdf_bocc(pdf_path : str = bocc_no_pdf_path, bocc_collection : Collection = bocc_collection, separators : list[str] = separators) -> int :
+    try :
+        if not bocc_no_pdf_documents : 
             print("Aucun PDF trouvé dans", pdf_path)
-        else:
-            print(f"{len(pdf_documents)} fichiers trouvés dans le répertoire {pdf_path}\n")
-            for i, file in enumerate(pdf_documents, 1):
+        else :
+            for i, file in enumerate(bocc_no_pdf_documents, 1) :
                 file_name = os.path.splitext(os.path.basename(file))[0]
-                print(f"Fichier {i}/{len(pdf_documents)}")
+                print(f"Fichier {i}/{len(bocc_no_pdf_documents)}")
                 print("="*50, "\n")
                 print(f"Fichier : {file_name} \n")
-
+                
                 chunk_and_insert_pdf_file(
-                    collection=conventions_etendues_collection,
-                    file_path=file,
-                    separators=separators
-                )
+                    collection = bocc_collection,
+                    file_path = file, 
+                    separators = separators, )
         return 1
-
-    except Exception as e:
+    
+    except Exception as e :
         print(f"Erreur de traitement : {e}")
-        print("\n", "="*50, "\n")
-        return 0
+    print("\n","="*50,"\n")
+    return 0
 
 # ==============================================================================================================
 
-if __name__ == "__main__":
-    ingestion_conventions_etendues()
+if __name__ == "__main__" : 
+    
+    ingest_no_direct_pdf_bocc()
+
+
+
+
 
