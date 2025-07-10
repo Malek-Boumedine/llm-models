@@ -5,6 +5,7 @@ import pandas as pd
 from chromadb.api.models.Collection import Collection
 from qdrant_client import QdrantClient
 from chromadb.utils import embedding_functions
+from typing import TextIO
 
 
 
@@ -55,59 +56,6 @@ def split_texts(text : str, separators = None, chunk_size : int = 1000, chunk_ov
 
 # ajouter les chunks à la base de données
 
-# def add_chunks_to_db(client : QdrantClient, collection : str, chunks : list, file_name : str, embedding_function : embedding_functions) -> int :
-#     try:
-#         points = []
-#         for i, chunk in enumerate(chunks):
-            
-#             # Générer l'embedding pour chaque chunk
-#             vector = embedding_function([chunk])[0]
-#             points.append({
-#                 "id": i + 1,
-#                 "vector": vector,
-#                 "payload": {
-#                     "text": chunk,
-#                     "source": file_name
-#                 }
-#             })
-        
-#         # Insertion en une seule fois
-#         client.upsert(
-#             collection_name=collection,
-#             points=points
-#         )
-#         return 1
-#     except Exception as e:
-#         print(f"Erreur lors de l'ajout. Erreur au niveau de la fonction {add_chunks_to_db.__name__} : {e}")
-#         return 0
-
-
-# def add_chunks_to_db(client: QdrantClient, collection: str, chunks: list, file_name: str, embedding_function) -> int:
-#     try:
-#         batch_size = 1000  
-        
-#         for i in range(0, len(chunks), batch_size):
-#             batch_chunks = chunks[i:i + batch_size]
-#             points = []
-            
-#             for j, chunk in enumerate(batch_chunks):
-#                 vector = embedding_function([chunk])[0]
-#                 points.append({
-#                     "id": i + j + 1,
-#                     "vector": vector,
-#                     "payload": {
-#                         "text": chunk,
-#                         "source": file_name
-#                     }
-#                 })
-            
-#             client.upsert(collection_name=collection, points=points)
-#         return 1
-#     except Exception as e:
-#         print(f"Erreur lors de l'ajout : {e}")
-#         return 0
-
-
 def add_chunks_to_db(client: QdrantClient, collection: str, chunks: list, file_name: str, embedding_function) -> int:
     try:
         batch_size = 400  # Optimisé pour RTX 4060 Mobile
@@ -139,8 +87,6 @@ def add_chunks_to_db(client: QdrantClient, collection: str, chunks: list, file_n
         print(f"Erreur lors de l'ajout GPU : {e}")
         return 0
 
-
-
 # ===========================================================================
 
 # fonction qui lit le contenu d'un fichier, créé des chunks et l'envoie à la bdd
@@ -170,9 +116,33 @@ def chunk_and_insert_pdf_file(client : QdrantClient, collection : Collection, em
         print(f"Une erreur s'est produite. Erreur au niveau de la fonction {chunk_and_insert_pdf_file.__name__} : {e}")
         return 0
 
+# ===========================================================================
+
+# fonction qui permet d'écrire les logs
+
+def log_and_print(message : str, logfile : TextIO) -> None : 
+    print(message)
+    logfile.write(message + "\n")
+    logfile.flush()
 
 
+# ===========================================================================
 
 
+# ===========================================================================
 
+
+# ===========================================================================
+
+
+# ===========================================================================
+
+
+# ===========================================================================
+
+
+# ===========================================================================
+
+
+# ===========================================================================
 
