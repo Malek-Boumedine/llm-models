@@ -3,9 +3,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 from src.utils import load_and_read_excel_files, load_pdf_files, chunk_and_insert_pdf_file, split_texts, add_chunks_to_db
 
-# from chromadb.utils import embedding_functions as ef
 from chromadb.utils import embedding_functions as ef
-from chromadb.api.models.Collection import Collection
 from dotenv import load_dotenv
 from db.connection import get_qdrant_client, create_collection, disable_indexing, reactivate_indexing
 
@@ -28,7 +26,7 @@ files_path = os.path.join("../1.scraping_data/data/code_du_travail/")
 
 # ================================================================================================================
 
-# chunks pour les icdd avec correspondance ape
+# ingestion des icdd avec correspondance ape et du code du travail
 
 def ingest_idcc_code_travail(pdf_path : str = files_path) -> int:
     
@@ -40,6 +38,7 @@ def ingest_idcc_code_travail(pdf_path : str = files_path) -> int:
     pdf_documents = load_pdf_files(pdf_path)
     embedding_model = os.getenv("OLLAMA_EMBEDDING_MODEL", "paraphrase-multilingual:278m-mpnet-base-v2-fp16")
     embedding_function = ef.OllamaEmbeddingFunction(model_name = embedding_model)
+    
     create_collection(client = client, collection_name = idcc_ape_col_name, embedding_function = embedding_function)
     create_collection(client = client, collection_name = code_travail_col_name, embedding_function = embedding_function)
     
@@ -75,6 +74,7 @@ def ingest_idcc_code_travail(pdf_path : str = files_path) -> int:
             reactivate_indexing(client = client, collection_name = idcc_ape_col_name)
             reactivate_indexing(client = client, collection_name = code_travail_col_name)
         return 1
+    
     except Exception as e:
         print(f"Erreur de traitement : {e}")
         print("\n", "="*50, "\n")
