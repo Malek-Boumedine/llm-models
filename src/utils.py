@@ -30,6 +30,7 @@ def load_and_read_excel_files(path : str)-> list[dict] :
     for file in files_list :
         if file.endswith(".xls") or file.endswith(".xlsx") :
             df_dict = pd.read_excel(os.path.join(path, file), sheet_name=None)
+            text = ""
             for name, sheet in df_dict.items():
                 text += sheet.to_csv(index=False)
             docs.append({"file" : file, "text" : text})
@@ -55,16 +56,18 @@ def add_chunks_to_db(collection : Collection, chunks : list, file_name: str) -> 
     try :
         ids = [f"{file_name}_{i}" for i in range(1, len(chunks)+1)]
         metadatas = [{"source": file_name} for _ in range(len(chunks))]
-        collection.add(
-            documents=chunks,
-            metadatas=metadatas,
-            ids=ids)
-        # batch_size = 128
-        # for i in range(0, len(chunks), batch_size):
-        #     collection.add(
-        #         documents=chunks[i:i+batch_size],
-        #         metadatas=metadatas[i:i+batch_size],
-        #         ids=ids[i:i+batch_size])
+        
+        # collection.add(
+        #     documents=chunks,
+        #     metadatas=metadatas,
+        #     ids=ids)
+        
+        batch_size = 128
+        for i in range(0, len(chunks), batch_size):
+            collection.add(
+                documents=chunks[i:i+batch_size],
+                metadatas=metadatas[i:i+batch_size],
+                ids=ids[i:i+batch_size])
         return 1
     except Exception as e :
         print(f"Erreur lors de l'ajout : {e}")
