@@ -146,7 +146,7 @@ def ingest_idcc_ape_excel(files_path: str = files_path, client_host : str = clie
                 
                 if success:
                     log_and_print(f"Insertion réussie pour {file_name} ({len(ape_idcc_chunks)} chunks)", logfile = logfile)
-                    disable_indexing(client = client, collection_name = idcc_ape_col_name)
+                    reactivate_indexing(client = client, collection_name = idcc_ape_col_name, logfile = logfile)
                     return 1
                 else:
                     log_and_print(f"Erreur lors de l'insertion pour {file_name}", logfile = logfile)

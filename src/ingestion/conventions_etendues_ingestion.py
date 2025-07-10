@@ -64,7 +64,7 @@ def ingestion_conventions_etendues(pdf_path: str = files_path, client_host : str
                         file_path=file, 
                         separators=separators)
                     log_and_print(f"{file_name} ajouté avec succès à la collection {collection_name}", logfile)
-                reactivate_indexing(client = client, collection_name = collection_name)
+                reactivate_indexing(client = client, collection_name = collection_name, logfile = logfile)
             return 1
 
         except Exception as e:

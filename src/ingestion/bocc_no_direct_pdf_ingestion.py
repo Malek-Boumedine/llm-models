@@ -66,7 +66,7 @@ def ingest_no_direct_pdf_bocc(pdf_path : str = files_path, client_host : str = c
                         file_path=file, 
                         separators=separators)
                     log_and_print(f"{file_name} ajouté avec succès à la collection {collection_name}", logfile)
-                reactivate_indexing(client = client, collection_name = collection_name)
+                reactivate_indexing(client = client, collection_name = collection_name, logfile = logfile)
             return 1
 
         except Exception as e:
