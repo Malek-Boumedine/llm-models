@@ -75,6 +75,7 @@ def ingest_idcc_code_travail(pdf_path : str = files_path) -> int:
                             file_path=file, 
                             separators=code_travail_separators)
                         log_and_print(f"{file_name} ajouté avec succès à la collection {code_travail_col_name}", logfile)
+                        
                     elif file_name == "IDCC_liste":
                         chunk_and_insert_pdf_file(
                             client=client,

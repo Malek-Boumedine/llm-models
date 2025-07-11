@@ -28,8 +28,8 @@ def ingestion_conventions_etendues(pdf_path: str = files_path, client_host : str
     
     collection_name = "conventions_etendues"
     separators = ["\n\n", "\nArticle ", "\nChapitre", "\nSection", "\n", " "]
-    
-    logs_dir = "logs/bocc_logs/direct_pdf/"
+
+    logs_dir = "logs/conventions_etendues"
     os.makedirs(logs_dir, exist_ok=True)
     now_str = datetime.now().strftime("%d-%m-%Y_%H-%M")
     logfile = f"{logs_dir}log_{now_str}.log"

@@ -18,6 +18,7 @@ dependencies = [
     "networkx>=3.5",
     "ollama>=0.5.1",
     "pandas>=2.3.1",
+    "pdfplumber>=0.11.7",
     "pypdf>=5.7.0",
     "pypdf2>=3.0.1",
     "qdrant-client[fastembed]>=1.14.3",
