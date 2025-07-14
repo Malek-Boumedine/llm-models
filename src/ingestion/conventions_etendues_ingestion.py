@@ -7,6 +7,7 @@ from chromadb.utils import embedding_functions as ef
 from dotenv import load_dotenv
 from src.db.connection import get_qdrant_client, create_collection, disable_indexing, reactivate_indexing
 from datetime import datetime
+import re
 
 
 
@@ -23,6 +24,12 @@ files_path = os.path.join("../1.scraping_data/data/conventions_etendues/")
 # ==============================================================================================================
 
 # ingestion de toutes les conventions étendues
+"""
+pour les metadata, extraire :
+   IDCC 
+   nom convention
+   
+"""
 
 def ingestion_conventions_etendues(pdf_path: str = files_path, client_host : str = client_host) -> int:
     
@@ -53,6 +60,19 @@ def ingestion_conventions_etendues(pdf_path: str = files_path, client_host : str
                 return 0
             else:
                 for i, file in enumerate(pdf_documents, 1):
+                    match = re.search(r'IDCC\s*(\d+)', file, re.IGNORECASE)
+                    idcc_number = match.group(1) if match else None
+                    nom_sans_idcc = re.sub(r'^IDCC\s*\d+\s*-\s*', '', file_name, flags=re.IGNORECASE).strip()
+                    convention_name = re.sub(
+                        r'(du|au)?\s*\d{1,2}(er)?\s*(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre|0[1-9]|1[0-2]|[1-3][0-9])[_\s\-]*(\d{4})?(\s*mis en ligne au \d{2}_\d{2}_\d{4})?$', '', 
+                        nom_sans_idcc, 
+                        flags=re.IGNORECASE
+                        ).strip(" -_")
+                    metadatas = {
+                        "idcc": idcc_number,
+                        "nom_convention": convention_name
+                    }
+                    
                     file_name = os.path.splitext(os.path.basename(file))[0]
                     log_and_print("="*50+"\n", logfile)
                     log_and_print(f"Fichier {i}/{len(pdf_documents)}", logfile)
@@ -62,7 +82,8 @@ def ingestion_conventions_etendues(pdf_path: str = files_path, client_host : str
                         collection=collection_name,
                         embedding_function=embedding_function,
                         file_path=file, 
-                        separators=separators)
+                        separators=separators, 
+                        extra_metadata=metadatas)
                     log_and_print(f"{file_name} ajouté avec succès à la collection {collection_name}", logfile)
                 reactivate_indexing(client = client, collection_name = collection_name, logfile = logfile)
             return 1

@@ -7,6 +7,7 @@ from chromadb.utils import embedding_functions as ef
 from dotenv import load_dotenv
 from src.db.connection import get_qdrant_client, create_collection, disable_indexing, reactivate_indexing
 from datetime import datetime
+import re
 
 
 
@@ -25,6 +26,13 @@ files_path = os.path.join("../1.scraping_data/data/BOCC_no_pdf_direct_link/")
 # ==============================================================================================================
 
 # ingestion de tous les bulletins officiels des conventions étendues (sans lien pdf direct)
+
+"""
+ici pour les metadata extraire : 
+    - numero de bulletin
+    - date de la collection
+
+"""
 
 def ingest_no_direct_pdf_bocc(pdf_path : str = files_path, client_host : str = client_host) -> int :
     
@@ -56,6 +64,21 @@ def ingest_no_direct_pdf_bocc(pdf_path : str = files_path, client_host : str = c
             else:
                 for i, file in enumerate(pdf_documents, 1):
                     file_name = os.path.splitext(os.path.basename(file))[0]
+                    bulletin_match = re.search(r'n°\s*(\d{4}_\d+)', file_name, re.IGNORECASE)
+                    bulletin_number = bulletin_match.group(1) if bulletin_match else None
+
+                    date_match = re.search(r'du\s*(\d{2}_\d{2}_\d{4})', file_name, re.IGNORECASE)
+                    date_str = date_match.group(1) if date_match else None
+                
+                    # Conversion au format datetime
+                    bulletin_date = datetime.strptime(date_str, "%d_%m_%Y") if date_str else None                    
+
+                    metadatas = {
+                        "bulletin_number": bulletin_number,
+                        "bulletin_date": bulletin_date
+                    }
+                    
+                    file_name = os.path.splitext(os.path.basename(file))[0]
                     log_and_print("="*50+"\n", logfile)
                     log_and_print(f"Fichier {i}/{len(pdf_documents)}", logfile)
                     log_and_print(f"Fichier : {file_name} \n", logfile)
@@ -64,7 +87,8 @@ def ingest_no_direct_pdf_bocc(pdf_path : str = files_path, client_host : str = c
                         collection=collection_name,
                         embedding_function=embedding_function,
                         file_path=file, 
-                        separators=separators)
+                        separators=separators, 
+                        extra_metadata=metadatas)
                     log_and_print(f"{file_name} ajouté avec succès à la collection {collection_name}", logfile)
                 reactivate_indexing(client = client, collection_name = collection_name, logfile = logfile)
             return 1

@@ -9,6 +9,7 @@ from langchain_ollama import ChatOllama
 
 from langchain_community.vectorstores import Chroma
 import warnings
+from src.db.connection import get_qdrant_client
 # warnings.filterwarnings("ignore")
 
 
@@ -17,52 +18,61 @@ import warnings
 # =================================================================================
 
 # Connexion à Qdrant (exemple en local)
-qdrant_host = "http://localhost:6333"
-collection_name = "code_travail_collection"  # adapte à ta collection
-embedding_model = "paraphrase-multilingual-mpnet-base-v2"
-embedding_function = SentenceTransformerEmbeddings(model_name=embedding_model)
+with open("fichier_log_agent_test", "w", encoding="utf-8") as logfile:
+    qdrant_host = "http://localhost:6333"
+    embedding_model = "paraphrase-multilingual-mpnet-base-v2"
+    embedding_function = SentenceTransformerEmbeddings(model_name=embedding_model)
+    client = get_qdrant_client(qdrant_host, logfile)
 
-# qdrant_db = Qdrant(
-#     url=qdrant_host,
-#     collection_name=collection_name,
-#     embeddings=embedding_function)
-
-# # création du retriever
-# retriever = qdrant_db.as_retriever(
-#     search_kwargs={"k": 5}  # Nombre de passages renvoyés
-# )
-
-
-# =================================================================================
-
-chroma_db = Chroma(
-    persist_directory="BDD_TEST",   # ton dossier Chroma
-    collection_name="code_travail_collection",
-    embedding_function=embedding_function,
-)
-
-retriever = chroma_db.as_retriever(search_kwargs={"k": 5})
-
+collections = ["code_travail_collection", "conventions_etendues", "bocc", "idcc_ape_collection"]
+retriever = [
+    Qdrant(
+        client=client,
+        collection_name=col,
+        embeddings=embedding_function
+    ).as_retriever(search_kwargs={"k": 5})
+    for col in collections]
 
 # =================================================================================
 
 # Création de l'outil LangChain pour la recherche
-retriever_tool = create_retriever_tool(
-    retriever,
-    name="recherche_code_travail",
-    description="Recherche d'informations précises dans le Code du travail et les conventions collectives.",
-)
+retriever_tools = [
+    create_retriever_tool(
+        ret,
+        name=f"recherche_{col}",
+        description=f"Recherche dans la collection {col}")
+    for ret, col in zip(retriever, collections)]
 
-tools = [retriever_tool]
+tools = retriever_tools
 
 # Prompt contextuel
 prompt = ChatPromptTemplate.from_messages([
-    ("system", "Tu te nommes Urssafino et tu es un expert en droit du travail français, tu t'appuies sur les documents officiels de la base."),
+    ("system",
+     """Tu es un expert en droit du travail français.
+     Tu réponds toujours en t'appuyant exclusivement sur les informations contenues dans ta base documentaire.
+     
+     Tes collections disponibles sont :
+     - code_travail_collection
+     - conventions_etendues
+     - bocc
+     - idcc_ape_collection
+
+     Utilise la méthode ReAct suivante :
+     Question: la question initiale de l'utilisateur
+     Thought: explique ta réflexion sur comment trouver la réponse
+     Action: utilise l'outil correspondant à la collection la plus pertinente
+     Observation: les résultats de l'outil
+     Thought: ta réflexion suite aux résultats
+     Final Answer: réponds à l'utilisateur de manière claire, détaillée et structurée en français.
+
+     Si aucune information n'est trouvée, indique-le clairement.
+     """),
     ("placeholder", "{messages}"),
-    ("user", "Sois aussi précis que possible dans tes réponses, cite les références si possible."),
+    ("user", "{input}"),
 ])
 
-model = ChatOllama(model="mistral:7b")
+# model = ChatOllama(model="mistral:7b")
+model = ChatOllama(model="llama3.1:latest")
 agent_memory = MemorySaver()
 
 agent = create_react_agent(
