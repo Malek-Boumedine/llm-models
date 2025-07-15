@@ -8,7 +8,6 @@ from src.ingestion.idcc_code_travail_ingestion import ingest_idcc_ape_excel, ing
 
 def main():
     print("="*25 + "  DEBUT D'INGESTION DES DONNEES  " + "="*25 + "\n\n")
-    
     print("ingest_idcc_ape_excel \n")
     print("-"*123)
     ingest_idcc_ape_excel()
@@ -23,7 +22,7 @@ def main():
     ingest_no_direct_pdf_bocc()
     print("ingest_direct_pdf_bocc \n")
     print("-"*123)
-    ingest_direct_pdf_bocc()
+    ingest_direct_pdf_bocc() 
 
 
 if __name__ == "__main__":

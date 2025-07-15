@@ -73,7 +73,8 @@ def ingest_idcc_code_travail(pdf_path : str = files_path) -> int:
                             collection=code_travail_col_name,
                             embedding_function=embedding_function,
                             file_path=file, 
-                            separators=code_travail_separators)
+                            separators=code_travail_separators, 
+                            extra_metadata=None)
                         log_and_print(f"{file_name} ajouté avec succès à la collection {code_travail_col_name}", logfile)
                         
                     elif file_name == "IDCC_liste":
@@ -82,7 +83,8 @@ def ingest_idcc_code_travail(pdf_path : str = files_path) -> int:
                             collection=idcc_ape_col_name,
                             embedding_function=embedding_function,
                             file_path=file, 
-                            separators=idcc_separators)
+                            separators=idcc_separators, 
+                            extra_metadata=None)
                         log_and_print(f"{file_name} ajouté avec succès à la collection {idcc_ape_col_name}", logfile)
                 reactivate_indexing(client = client, collection_name = idcc_ape_col_name, logfile = logfile)
                 reactivate_indexing(client = client, collection_name = code_travail_col_name, logfile = logfile)

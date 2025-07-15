@@ -7,6 +7,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
 from chromadb.utils import embedding_functions
 from typing import TextIO
+import re
 
 
 
@@ -87,9 +88,10 @@ def add_chunks_to_db(client: QdrantClient, collection: str, chunks: list, file_n
                     payload.update(extra_metadata)
 
                 # Utilise PointStruct, ID auto ou UUID si besoin
+                point_id = idx
                 points.append(
                     PointStruct(
-                        id=None,
+                        id=point_id,
                         vector=vector,
                         payload=payload))
                 idx += 1
@@ -108,7 +110,7 @@ def add_chunks_to_db(client: QdrantClient, collection: str, chunks: list, file_n
 
 # fonction qui lit le contenu d'un fichier, créé des chunks et l'envoie à la bdd
 
-def chunk_and_insert_pdf_file(client : QdrantClient, collection : Collection, embedding_function : embedding_functions,  file_path : str, extra_metadata: dict, separators : list[str] = None, chunk_size : int = 1200, chunk_overlap : int = 200) -> int:
+def chunk_and_insert_pdf_file(client : QdrantClient, collection : Collection, embedding_function : embedding_functions,  file_path : str, extra_metadata: dict = None, separators : list[str] = None, chunk_size : int = 1200, chunk_overlap : int = 200) -> int:
 
     # lecture du fichier pdf
     try :

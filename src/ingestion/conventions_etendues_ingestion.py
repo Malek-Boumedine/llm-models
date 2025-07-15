@@ -36,7 +36,7 @@ def ingestion_conventions_etendues(pdf_path: str = files_path, client_host : str
     collection_name = "conventions_etendues"
     separators = ["\n\n", "\nArticle ", "\nChapitre", "\nSection", "\n", " "]
 
-    logs_dir = "logs/conventions_etendues"
+    logs_dir = "logs/conventions_etendues/"
     os.makedirs(logs_dir, exist_ok=True)
     now_str = datetime.now().strftime("%d-%m-%Y_%H-%M")
     logfile = f"{logs_dir}log_{now_str}.log"
@@ -60,6 +60,7 @@ def ingestion_conventions_etendues(pdf_path: str = files_path, client_host : str
                 return 0
             else:
                 for i, file in enumerate(pdf_documents, 1):
+                    file_name = os.path.splitext(os.path.basename(file))[0]
                     match = re.search(r'IDCC\s*(\d+)', file, re.IGNORECASE)
                     idcc_number = match.group(1) if match else None
                     nom_sans_idcc = re.sub(r'^IDCC\s*\d+\s*-\s*', '', file_name, flags=re.IGNORECASE).strip()
@@ -73,7 +74,6 @@ def ingestion_conventions_etendues(pdf_path: str = files_path, client_host : str
                         "nom_convention": convention_name
                     }
                     
-                    file_name = os.path.splitext(os.path.basename(file))[0]
                     log_and_print("="*50+"\n", logfile)
                     log_and_print(f"Fichier {i}/{len(pdf_documents)}", logfile)
                     log_and_print(f"Fichier : {file_name} \n", logfile)
