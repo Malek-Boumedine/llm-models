@@ -116,7 +116,7 @@ log_file_path = "logs/droit_travail_agent"
 class DroitTravailAgent:
     """Agent spécialisé en droit du travail français avec pattern Factory"""
     
-    def __init__(self, qdrant_host=qdrant_host, embedding_model=embedding_model, log_file_path="log_file_path" ,model_name=model_name) :
+    def __init__(self, qdrant_host=qdrant_host, embedding_model=embedding_model, log_file_path=log_file_path ,model_name=model_name) :
         """
         Initialise l'agent de droit du travail
         
@@ -237,7 +237,7 @@ class DroitTravailAgent:
                 "thread_id": thread_id
             }
     
-    def print_stream(self, question, thread_id="default_thread"):
+    def print_stream(self, question, thread_id="th_000"):
         """
         Affiche directement la réponse (compatible avec votre usage actuel)
         
