@@ -61,14 +61,9 @@ def ingestion_conventions_etendues(pdf_path: str = files_path, client_host : str
             else:
                 for i, file in enumerate(pdf_documents, 1):
                     file_name = os.path.splitext(os.path.basename(file))[0]
-                    match = re.search(r'IDCC\s*(\d+)', file, re.IGNORECASE)
+                    match = re.search(r'IDCC\s*(\d+)', file_name, re.IGNORECASE)
                     idcc_number = match.group(1) if match else None
-                    nom_sans_idcc = re.sub(r'^IDCC\s*\d+\s*-\s*', '', file_name, flags=re.IGNORECASE).strip()
-                    convention_name = re.sub(
-                        r'(du|au)?\s*\d{1,2}(er)?\s*(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre|0[1-9]|1[0-2]|[1-3][0-9])[_\s\-]*(\d{4})?(\s*mis en ligne au \d{2}_\d{2}_\d{4})?$', '', 
-                        nom_sans_idcc, 
-                        flags=re.IGNORECASE
-                        ).strip(" -_")
+                    convention_name = file_name
                     metadatas = {
                         "idcc": idcc_number,
                         "nom_convention": convention_name

@@ -55,7 +55,7 @@ class BaseAgent:
                 retrieval_mode=RetrievalMode.DENSE,
                 content_payload_key="page_content",
                 metadata_payload_key="metadata"
-            ).as_retriever(search_kwargs={"k": 3})
+            ).as_retriever(search_kwargs={"k": 5})
             for col in self.collections]
         
         # Création des outils de recherche
