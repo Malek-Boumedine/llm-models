@@ -14,7 +14,6 @@ load_dotenv()
 qdrant_host = os.getenv("QDRANT_HOST", "http://localhost:6333")
 embedding_model = os.getenv("OLLAMA_EMBEDDING_MODEL", "paraphrase-multilingual:278m-mpnet-base-v2-fp16")
 model_name = os.getenv("MODEL_NAME", "llama3.1:latest")
-log_file_path = "logs/droit_travail_agent"
 log_file_path = "logs/conventions_collectives_agent"
 
 agent_type = "conventions_collectives"
