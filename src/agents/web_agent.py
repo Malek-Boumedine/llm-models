@@ -21,7 +21,8 @@ load_dotenv()
 tavily_api_key = os.getenv("TAVILY_API_KEY", None)
 
 model_name = os.getenv("MODEL_NAME", "llama3.1:latest")
-log_file_path = "logs/web_agent"
+log_file_path = "logs/agents/web_agent"
+os.makedirs(log_file_path, exist_ok=True)
 
 agent_type = "web_agent"
 domains = ["recherche web", "actualités en temps réel", "données gouvernementales", "APIs publiques", "veille informationnelle"]

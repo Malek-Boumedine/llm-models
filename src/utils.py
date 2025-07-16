@@ -35,7 +35,7 @@ def load_and_read_excel_files(path : str)-> list[dict] :
     files_list = os.listdir(path)
     for file in files_list :
         if file.endswith(".xls") or file.endswith(".xlsx") :
-            df_dict = pd.read_excel(os.path.join(path, file), sheet_name=None)
+            df_dict = pd.read_excel(os.path.join(path, file))
             text = ""
             for name, sheet in df_dict.items():
                 text += sheet.to_csv(index=False)

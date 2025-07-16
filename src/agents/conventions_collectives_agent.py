@@ -14,14 +14,15 @@ load_dotenv()
 qdrant_host = os.getenv("QDRANT_HOST", "http://localhost:6333")
 embedding_model = os.getenv("OLLAMA_EMBEDDING_MODEL", "paraphrase-multilingual:278m-mpnet-base-v2-fp16")
 model_name = os.getenv("MODEL_NAME", "llama3.1:latest")
-log_file_path = "logs/conventions_collectives_agent"
+log_file_path = "logs/agents/conventions_collectives_agent"
+os.makedirs(log_file_path, exist_ok=True)
 
 agent_type = "conventions_collectives"
 domains = ["conventions collectives du droit français"]
 speciality = "conventions_collectives"
 description = "Agent spécialisé dans les conventions collectives du droit du travail français"
 
-collections = ["conventions_etendues","idcc_ape_collection"]
+collections = ["conventions_etendues", "idcc_ape_collection"]
 prompt = ChatPromptTemplate.from_messages([
     ("system",
     """Tu es un expert des conventions collectives françaises, spécialisé dans la recherche documentaire précise et la sécurité juridique.

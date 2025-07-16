@@ -122,7 +122,7 @@ def ingest_idcc_ape_excel(files_path: str = files_path, client_host : str = clie
 
         try:
             # Filtrer les documents Excel
-            idcc_excel_doc = [d for d in excel_documents if d["file"] == "IDCC_APE.xls"]
+            idcc_excel_doc = [d for d in excel_documents if d["file"] == "IDCC_APE_cleaned.xlsx"]
             
             if not idcc_excel_doc: 
                 log_and_print("Aucun fichier Excel trouvé dans", files_path, logfile = logfile)
