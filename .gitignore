@@ -12,3 +12,4 @@ data
 test.py
 .env
 BDD_TEST
+logs/
