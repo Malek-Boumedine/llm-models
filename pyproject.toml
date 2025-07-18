@@ -9,6 +9,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "alembic>=1.16.4",
+    "chainlit>=0.1.0",
     "chromadb>=1.0.15",
     "dotenv>=0.9.9",
     "fastapi>=0.116.1",

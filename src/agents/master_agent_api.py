@@ -84,37 +84,47 @@ class APIMasterAgent:
         """Analyse si une convention collective est nécessaire avec prompt optimisé"""
         
         analysis_prompt = f"""
-        Analyser si une convention collective est nécessaire pour cette question juridique :
+        Tu es un expert juridique qui détermine si une convention collective est nécessaire.
 
-        QUESTION : {state['user_query']}
-        RÉPONSE DROIT DU TRAVAIL : {state['droit_travail_response']}
-        CONFIANCE DROIT DU TRAVAIL : {state['droit_travail_confidence']}
+        **DONNÉES À ANALYSER :**
+        - Question : {state['user_query']}
+        - Réponse droit du travail : {state['droit_travail_response']}
+        - Confiance : {state['droit_travail_confidence']}
 
-        **Critères d'analyse :**
+        **ALGORITHME DE DÉCISION (par ordre de priorité) :**
 
-        Convention collective NÉCESSAIRE si :
-        - Mention explicite d'entreprise, secteur ou profession spécifique
-        - Question sur salaires minimums, primes, classifications professionnelles
-        - Organisme spécifique (CAF, CPAM, banques, commerce, BTP, etc.)
-        - Temps de travail spécifique à un secteur
-        - Avantages sociaux sectoriels
-        - La réponse droit du travail mentionne "selon convention collective"
+        **1. CRITÈRES PRIORITAIRES → Convention collective NÉCESSAIRE :**
+        - ✅ Mention explicite de secteur/profession (boulangerie, BTP, banques, etc.)
+        - ✅ Question sur salaires minimums, primes, classifications
+        - ✅ Réponse mentionne "selon convention collective" ou "IDCC"
+        - ✅ Temps de travail spécifique (horaires décalés, nuit, etc.)
+        - ✅ Avantages sociaux sectoriels (mutuelle, prévoyance, etc.)
 
-        Convention collective NON NÉCESSAIRE si :
-        - Question générale sur le Code du travail
-        - SMIC national, durée légale du travail (35h)
-        - Procédures générales (licenciement, démission)
-        - Congés légaux minimums
-        - Règles de sécurité générales
-        - Réponse droit du travail complète et précise
+        **2. CRITÈRES SECONDAIRES → Évaluation contextuelle :**
+        - ⚠️ Confiance droit du travail < 0.8
+        - ⚠️ Entreprise/employeur spécifique mentionné
+        - ⚠️ Réponse générale mais secteur implicite détectable
 
-        **Instructions :**
-        - Analyse la spécificité de la question
-        - Vérifie si la réponse droit du travail mentionne des cas particuliers
-        - Évalue si des règles sectorielles peuvent s'appliquer
-        - Considère le niveau de confiance de la réponse droit du travail
+        **3. CRITÈRES D'EXCLUSION → Convention collective NON NÉCESSAIRE :**
+        - ❌ SMIC national, durée légale 35h
+        - ❌ Procédures générales (licenciement, démission)
+        - ❌ Congés légaux minimums (5 semaines)
+        - ❌ Règles sécurité générales
+        - ❌ Réponse complète ET confiance > 0.8
 
-        Réponds EXACTEMENT par : "OUI" ou "NON" suivi d'une justification précise en 2 phrases maximum.
+        **INSTRUCTIONS D'ANALYSE :**
+        1. Vérifie d'abord les critères prioritaires (ordre d'importance)
+        2. Si aucun critère prioritaire → évalue les critères secondaires
+        3. Si critères d'exclusion → réponds NON directement
+        4. En cas de doute → privilégie OUI (principe de précaution)
+
+        **FORMAT DE RÉPONSE OBLIGATOIRE :**
+        "OUI" ou "NON" + justification en 1 phrase précise avec le critère utilisé.
+
+        **EXEMPLES :**
+        - "OUI - Secteur boulangerie mentionné (critère prioritaire)"
+        - "NON - Question générale sur congés légaux (critère d'exclusion)"
+        - "OUI - Confiance faible 0.6 nécessite vérification sectorielle"
         """
         
         try:
