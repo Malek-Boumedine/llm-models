@@ -1,6 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
 from src.agents.base_agent import BaseAgent
+from groq import Groq
 import warnings
 import os
 # warnings.filterwarnings("ignore")
@@ -16,84 +17,105 @@ embedding_model = os.getenv("OLLAMA_EMBEDDING_MODEL", "paraphrase-multilingual:2
 model_name = os.getenv("MODEL_NAME", "llama3.1:latest")
 log_file_path = "logs/conventions_collectives_agent"
 
+model_type = os.getenv("MODEL_TYPE", "local")
+groq_model = os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+perplexity_model = os.getenv("PERPLEXITY_MODEL", "sonar")
+
 agent_type = "conventions_collectives"
 domains = ["conventions collectives du droit français"]
 speciality = "conventions_collectives"
 description = "Agent spécialisé dans les conventions collectives du droit du travail français"
 
-collections = ["conventions_etendues","idcc_ape_collection"]
+collections = ["conventions_etendues", "bocc"]
 prompt = ChatPromptTemplate.from_messages([
     ("system",
-    """Tu es un expert des conventions collectives françaises, spécialisé dans la recherche documentaire précise et la sécurité juridique.
+    """Tu es un expert des conventions collectives françaises spécialisé dans l'identification précise et la vérification des sources.
 
-    **Règles strictes à suivre :**
-    - Ne donne jamais une règle, une durée ou une référence d’article si elle ne correspond pas exactement à la convention collective concernée ou à l’IDCC mentionné dans la question.
-    - Si la convention collective applicable n’est pas précisée dans la question, explique comment l’utilisateur peut l’identifier (ex : numéro IDCC, intitulé complet, secteur, etc.).
-    - Utilise OBLIGATOIREMENT les métadonnées de chaque document pour :
-        • Citer le numéro IDCC exact,
-        • Mentionner le nom complet de la convention collective,
-        • Préciser la source exacte de chaque information (numéro d’article, titre, date de signature, extension, etc.).
-    - Si plusieurs conventions ou textes peuvent s’appliquer, détaille chaque cas avec références, ou précise que la règle varie selon la convention.
-    - Si l’information demandée n’existe pas dans la base, indique-le clairement et recommande de consulter la convention collective officielle ou un professionnel.
-    - Structure ta réponse ainsi :
-        1. Commence par un rappel général ou contextuel sur la question posée et l’importance de l’identification de la convention collective.
-        2. Détaille la règle applicable uniquement si elle est trouvée dans la convention, en précisant l’IDCC, le nom et l’article/référence.
-        3. Si l’information varie selon la convention, expose les différences principales ou explique la démarche à suivre.
-        4. Termine toujours par une recommandation : vérifier l’IDCC, consulter la convention sur Légifrance ou demander conseil à un professionnel.
-    - N’invente jamais, n’extrapole pas : reste factuel, nuancé, et précis sur ce que dit (ou ne dit pas) la convention collective.
+    **Règles strictes :**
+    - Citations exactes avec IDCC, nom complet et article précis UNIQUEMENT si trouvés dans tes données
+    - Utilise OBLIGATOIREMENT les métadonnées (IDCC, date, extension) pour valider tes réponses
+    - Vérifie que la convention est bien étendue avant de la citer
+    - Si convention non spécifiée dans la question, explique comment l'identifier
+    - Transparence totale sur les limites de ta base documentaire
 
-    **Ta base documentaire comprend :**
+    **Format de réponse obligatoire :**
+    **RÉPONSE CONVENTIONS COLLECTIVES**
+    
+    **Convention identifiée :** [IDCC XXXX - Nom complet exact]
+    **Statut :** [Étendue - Date d'extension]
+    **Article applicable :** [Article précis SI trouvé dans ta base]
+    **Règle spécifique :** [Disposition exacte]
+    
+    **Certitude :** [HAUTE si IDCC + article trouvés / MOYENNE si IDCC trouvé / BASSE si incertain]
+    
+    **Si convention non identifiée :**
+    - Explique comment identifier la convention applicable
+    - Propose des pistes (secteur d'activité, effectifs, etc.)
+    
+    **Collections disponibles :**
     - conventions_etendues (Conventions collectives étendues)
-    - idcc_ape_collection (Correspondances IDCC/APEs et informations sectorielles)
+    - bocc (Bulletin officiel des conventions collectives)
 
-    **Format de réponse à respecter (méthode ReAct) :**
-    Question : ...
-    Thought : ...
-    Action : ...
-    Observation : ...
-    Thought : ...
-    Final Answer : [Réponse claire, exhaustive, structurée, toujours avec le numéro IDCC, le nom exact de la convention et la référence de l’article ou du texte]
+    **Instructions critiques :**
+    - Vérifie TOUJOURS l'IDCC dans tes métadonnées avant de citer
+    - Ne propose JAMAIS de convention que tu n'as pas trouvée dans ta base
+    - Indique clairement si tu n'as pas trouvé la convention dans tes données
 
-    Si aucune information pertinente n’est trouvée, indique-le explicitement et propose des alternatives de recherche.
-
-    Réponds toujours en français.
+    Réponds en français avec un ton professionnel et rigoureux.
     """),
-        ("placeholder", "{messages}"),
+    ("placeholder", "{messages}"),
 ])
 
 
-class ConventionsCollectivesAgent(BaseAgent) :
+class ConventionsCollectivesAgent(BaseAgent):
     
     def __init__(self, 
-    qdrant_host = qdrant_host, 
-    embedding_model = embedding_model, 
-    log_file_path = log_file_path, 
-    model_name = model_name, 
-    agent_type = agent_type, 
-    domains = domains, 
-    speciality = speciality, 
-    description = description, 
-    collections = collections, 
-    prompt = prompt) :
-        super().__init__(qdrant_host, embedding_model, log_file_path, model_name, agent_type, domains, speciality, description, collections, prompt)
+        qdrant_host=qdrant_host, 
+        embedding_model=embedding_model, 
+        log_file_path=log_file_path, 
+        model_name=model_name, 
+        agent_type=agent_type, 
+        domains=domains, 
+        speciality=speciality, 
+        description=description, 
+        collections=collections, 
+        prompt=prompt,
+        model_type=model_type,
+        groq_model=groq_model,
+        perplexity_model=perplexity_model):
+        
+        super().__init__(
+            qdrant_host=qdrant_host, 
+            embedding_model=embedding_model, 
+            log_file_path=log_file_path, 
+            model_name=model_name, 
+            agent_type=agent_type, 
+            domains=domains, 
+            speciality=speciality, 
+            description=description, 
+            collections=collections, 
+            prompt=prompt, 
+            model_type=model_type, 
+            groq_model=groq_model, 
+            perplexity_model=perplexity_model
+        )
+
         
 
 # =================================================================================
         
 # TEST 
 
-if __name__ == "__main__" : 
+if __name__ == "__main__":
     
     agent_conventions_collectives = ConventionsCollectivesAgent()
 
-    result = agent_conventions_collectives.query("Quel est le montant de la prime d’ancienneté prévue par la Convention collective nationale du commerce de détail et de gros à prédominance alimentaire ?")["response"]
+    result = agent_conventions_collectives.query("Quel est le montant de la prime d'ancienneté prévue par la Convention collective nationale du commerce de détail et de gros à prédominance alimentaire ?")["response"]
     print(result)
 
     # # Vérification des capacités
     # capabilities = agent_conventions_collectives.get_capabilities()
     # print(capabilities)
-
-
 
 
 
