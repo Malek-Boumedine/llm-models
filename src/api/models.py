@@ -16,9 +16,10 @@ class User(SQLModel, table=True):
     role: str = Field(default="user", sa_column=Column(String(50)))
     created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime))
     
-    # Relations
+    # relations
     questions: List["Question"] = Relationship(back_populates="user")
     answers: List["Answer"] = Relationship(back_populates="user")
+    conversations: List["Conversation"] = Relationship(back_populates="user") 
     
 
 class Question(SQLModel, table=True):
@@ -28,6 +29,10 @@ class Question(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.user_id")
     conversation_id: Optional[int] = Field(default=None, foreign_key="conversation.conversation_id")
 
+    # relarions
+    user: Optional["User"] = Relationship(back_populates="questions")
+    conversation: Optional["Conversation"] = Relationship(back_populates="questions")
+    
 
 class Answer(SQLModel, table=True):
     answer_id: Optional[int] = Field(default=None, primary_key=True)
@@ -36,6 +41,10 @@ class Answer(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.user_id")
     conversation_id: Optional[int] = Field(default=None, foreign_key="conversation.conversation_id")
 
+    # relations
+    user: Optional["User"] = Relationship(back_populates="answers")
+    conversation: Optional["Conversation"] = Relationship(back_populates="answers")
+
 
 class Conversation(SQLModel, table=True):
     conversation_id: Optional[int] = Field(default=None, primary_key=True)
@@ -43,6 +52,6 @@ class Conversation(SQLModel, table=True):
     creation_date: datetime = Field(default_factory=datetime.now)
     
     # Relations
+    user: Optional["User"] = Relationship(back_populates="conversations")
     questions: List["Question"] = Relationship(back_populates="conversation")
     answers: List["Answer"] = Relationship(back_populates="conversation")
-

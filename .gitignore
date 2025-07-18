@@ -14,3 +14,4 @@ test.ipynb
 .env
 BDD_TEST
 logs/
+create_admin.py

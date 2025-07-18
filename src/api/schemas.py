@@ -29,6 +29,7 @@ class CreateAccount(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, description="longueur minimale de 8 caractères")
     password_confirm: str = Field(..., min_length=8, description="longueur minimale de 8 caractères")
+    role: str = Field(default="user", pattern="^(user|admin)$")
 
 
 # schémas manquants

@@ -1,6 +1,6 @@
 # gestion des tokens
 from datetime import datetime, timedelta, timezone
-from typing import Annotated
+from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 import os
@@ -22,7 +22,7 @@ ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 15))
 
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto") 
-oauth2_bearer = OAuth2PasswordBearer(tokenUrl="login") 
+oauth2_bearer = OAuth2PasswordBearer(tokenUrl="/api/v1/auth")
 
 
 db_dependency = Annotated[Session, Depends(db_connection)]   # dépendance pour la connexion à la BDD
@@ -69,35 +69,33 @@ def get_password_hash(password : str) -> str:
     return bcrypt_context.hash(password)
 
 
-def authenticate_user(email : str, password : str, db : db_dependency) -> User : 
+def authenticate_user(identifiant: str, password: str, db: db_dependency) -> Optional[User]:
     """
-    Authentifie un utilisateur par email et mot de passe.
+    Authentifie un utilisateur par email OU par nom d'utilisateur et mot de passe.
 
     Args:
-        email (str): Email de l'utilisateur
+        identifiant (str): Email ou nom d'utilisateur
         password (str): Mot de passe en clair
         db (Session): Session de base de données
 
     Returns:
-        User: Objet utilisateur si authentification réussie
-        False: Si authentification échouée
+        User | None: L'utilisateur si authentification réussie, sinon None
 
     Note:
         Vérifie le hash du mot de passe avec bcrypt
     """
     try:
-        statement = select(User).where(User.email == email)
+        statement = select(User).where((User.email == identifiant) | (User.username == identifiant))
         user = db.exec(statement).first()
-        
+
         if not user:
             return None
-            
+
         if not bcrypt_context.verify(password, user.hashed_password):
             return None
-            
+
         return user
     except Exception as e:
-        # Log l'erreur
         print(f"Erreur authentification: {e}")
         return None
     
@@ -130,6 +128,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)], db: db
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalide")
         statement = select(User).where(User.email == username)
         user = db.exec(statement).first()
+    
         user = db.query(User).filter(User.email == username).first()
         if user is None : 
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Nom d'utilisateur invalide")
