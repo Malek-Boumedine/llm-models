@@ -2,17 +2,19 @@
 name = "2-llm-modelisation"
 version = "0.1.0"
 description = "Partie de modélisation LLM : configuration, personnalisation et intégration d’un modèle de langage large (LLM) afin de permettre l’analyse, l’indexation et le traitement avancé des documents collectés lors du scraping."
-authors = ["Malek BOUMEDINE <malek.boumedine@gmail.com>"]
+authors = [
+    {name = "Malek BOUMEDINE", email = "malek.boumedine@gmail.com"}
+]
 keywords = ["scraping", "data", "LLM", "RAG"]
 licence = "MIT"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "alembic>=1.16.4",
-    "chainlit>=0.1.0",
+    "chainlit>=2.0.5,<2.6.1",
     "chromadb>=1.0.15",
     "dotenv>=0.9.9",
-    "fastapi>=0.116.1",
+    "fastapi>=0.115.3,<0.116",
     "groq>=0.30.0",
     "jose>=1.0.0",
     "langchain-community>=0.3.27",
@@ -35,11 +37,11 @@ dependencies = [
     "pypdf>=5.7.0",
     "pypdf2>=3.0.1",
     "python-jose>=3.5.0",
-    "python-multipart>=0.0.20",
+    "python-multipart==0.0.18",
     "qdrant-client[fastembed]>=1.14.3",
     "sentence-transformers>=5.0.0",
     "sqlmodel>=0.0.24",
     "tavily-python>=0.7.9",
-    "uvicorn>=0.35.0",
+    "uvicorn==0.25.0",
     "xlrd>=2.0.2",
 ]

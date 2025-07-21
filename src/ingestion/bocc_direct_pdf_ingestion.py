@@ -17,7 +17,8 @@ os.environ["CHROMA_ENABLE_TELEMETRY"] = "False"
 load_dotenv()
 
 client_host = os.getenv("QDRANT_HOST", "http://localhost:6333")
-files_path = os.path.join("../1.scraping_data/data/BOCC_pdf_direct_link/")
+files_path = os.path.join("data/BOCC_pdf_direct_link")
+
 
 # ==============================================================================================================
 

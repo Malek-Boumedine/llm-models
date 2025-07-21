@@ -20,7 +20,7 @@ load_dotenv()
 
 client_host = os.getenv("QDRANT_HOST", "http://localhost:6333")
 embedding_model = os.getenv("OLLAMA_EMBEDDING_MODEL", "paraphrase-multilingual:278m-mpnet-base-v2-fp16")
-files_path = os.path.join("../1.scraping_data/data/code_du_travail/")
+files_path = os.path.join("data/code_du_travail/")
 
 # ==============================================================================================================
 

@@ -1,4 +1,4 @@
-from sqlmodel import SQLModel, create_engine, text, Session
+from sqlmodel import SQLModel, create_engine, Session
 from dotenv import load_dotenv
 import os
 from src.chainlit_app.models import *

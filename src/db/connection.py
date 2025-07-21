@@ -37,7 +37,6 @@ def create_collection_qdrant(client: QdrantClient, collection_name: str, embeddi
                 m=24,
                 ef_construct=200,
                 max_indexing_threads=6, 
-                QDRANT__SERVICE__CPU_ONLY=True
             ),
             optimizers_config=OptimizersConfigDiff(
                 indexing_threshold=20000,    # Valeur normale (pas 0)

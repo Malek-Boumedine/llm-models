@@ -1,0 +1,9 @@
+FROM qdrant/qdrant:latest
+
+# Copie des données pré-ingérées
+COPY ./qdrant_storage /qdrant/storage
+
+# Variables d'environnement par défaut
+ENV QDRANT__STORAGE__STORAGE_PATH=/qdrant/storage
+
+EXPOSE 6333 6334
