@@ -15,7 +15,7 @@ load_dotenv()
 # agent droit du travail
 
 qdrant_host = os.getenv("QDRANT_HOST", "http://localhost:6333")
-embedding_model = os.getenv("OLLAMA_EMBEDDING_MODEL", "paraphrase-multilingual:278m-mpnet-base-v2-fp16")
+embedding_model = os.getenv("OLLAMA_EMBEDDING_MODEL", "bge-m3")
 model_name = os.getenv("MODEL_NAME", "llama3.1:latest")
 log_file_path = "logs/droit_travail_agent"
 
@@ -28,10 +28,11 @@ domains = ["droit du travail français"]
 speciality = "droit_du_travail"
 description = "Agent spécialisé du droit du travail français"
 
-collections = ["code_travail_collection"]
+# collections = ["code_travail_collection"]
+collections = ["code_travail_collection", "conventions_etendues", "bocc"]
 prompt = ChatPromptTemplate.from_messages([
     ("system",
-    """Tu es un expert du droit du travail français spécialisé dans la sécurité juridique et la précision des sources.
+    """Tu es un expert du droit du travail français et des conventions collectives spécialisé dans la sécurité juridique et la précision des sources.
 
     **Règles strictes :**
     - Citations exactes d'articles UNIQUEMENT si tu les trouves dans tes données
@@ -40,15 +41,34 @@ prompt = ChatPromptTemplate.from_messages([
     - Distingue clairement entre règles générales et spécifiques
     - Signale explicitement les cas nécessitant une convention collective
 
+    **Instructions spécialisées pour les fautes graves :**
+    - Rappelle TOUJOURS l'appréciation AU CAS PAR CAS par les tribunaux
+    - Liste les critères cumulatifs : durée prolongée + préjudice concret + impossibilité de maintien + absence de justification valable
+    - Nuance la gravité : absence isolée rarement grave, vs répétée ou en période critique
+    - Précise la procédure : convocation par LRAR (délai min. 5 jours ouvrables pleins) + entretien + notification motivée (dans les 2 mois des faits)
+    - Mentionne les conséquences du non-respect (nullité du licenciement) et recours aux prud'hommes
+    - Ajoute des exemples jurisprudentiels si disponibles (ex. : Cass. soc. 27 sept. 2007 pour absences injustifiées) **; évite les obligations non légales comme 'aider le salarié'**
+
+    **Instructions spécialisées pour le préavis/démission :**
+    - Précise la durée par défaut : 1 mois pour démission CDI (L.1237-1)
+    - Nuance : Variable par CC (ex. : 3 mois pour cadres) ou contrat
+    - Procédure : Notification (écrite recommandée) + respect du préavis ; PAS d'entretien préalable
+    - Mentionne dispenses : Par accord mutuel ou clause contractuelle
+    - Certitude : TOUJOURS MOYENNE car dépend souvent de CC
+    - Ajoute recours : Prud'hommes en cas de litige sur préavis
+
     **Format de réponse obligatoire :**
     **RÉPONSE DROIT DU TRAVAIL**
     
     **Règle générale :** [Principe du Code du travail]
-    **Source :** [Article précis SI trouvé dans ta base, sinon "Principe général"]
-    **Certitude :** [HAUTE/MOYENNE/BASSE - justifie]
+    **Source :** [Article précis SI trouvé, sinon "Principe général + jurisprudence"]
+    **Critères d'application :** [Liste numérotée des conditions clés avec exemples concrets]
+    **Certitude :** [HAUTE/MOYENNE/BASSE - justification détaillée basée sur jurisprudence]
     
-    **Limites :** [Cas où une convention collective peut modifier cette règle]
-    **Recommandation :** [Vérifier convention collective applicable / Consulter professionnel]
+    **Procédure (si applicable) :** [Étapes numérotées avec délais et formalités]
+    **Variations possibles :** [Selon durée, poste, circonstances - avec exemples]
+    **Limites :** [Modifications par convention collective]
+    **Recommandation :** [3 actions concrètes : documenter, vérifier CC, consulter pro]
 
     **Instructions critiques :**
     - Ne cite JAMAIS d'article que tu n'as pas trouvé dans tes données
@@ -101,15 +121,9 @@ class DroitTravailAgent(BaseAgent) :
 
 if __name__ == "__main__":
     
-    # Vous pouvez maintenant spécifier le type de modèle à utiliser
     agent_conventions_collectives = DroitTravailAgent()
-    
-    # modèle cloud :
-    # agent_conventions_collectives = DroitTravailAgent(model_type="groq")
-    # agent_conventions_collectives = DroitTravailAgent(model_type="perplexity")
-    
-    # result = agent_conventions_collectives.query("Quel est le délai de préavis pour la démission d'un salarié en CDI ?")["response"]
-    result = agent_conventions_collectives.query("Un salarié peut-il être licencié pour faute grave en cas d'absence injustifiée pendant plusieurs jours ?")["response"]
+        
+    result = agent_conventions_collectives.query("Quel est le délai de préavis pour la démission d'un salarié en CDI ?")["response"]
     print(result)
 
 

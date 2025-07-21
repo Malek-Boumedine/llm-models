@@ -1,5 +1,5 @@
-# ✅ Version corrigée pour Pydantic v2
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
+
 
 class AskQuestion(BaseModel): 
     model_config = ConfigDict(
@@ -32,7 +32,6 @@ class CreateAccount(BaseModel):
     role: str = Field(default="user", pattern="^(user|admin)$")
 
 
-# schémas manquants
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str

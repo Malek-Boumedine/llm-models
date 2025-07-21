@@ -141,8 +141,8 @@ def get_embedding_function_with_fallback(logfile=None):
     """
     from chromadb.utils import embedding_functions as ef
     
-    embedding_model = os.getenv("OLLAMA_EMBEDDING_MODEL", "bge-m3")
-    fallback_model = os.getenv("FALLBACK_MODEL", "paraphrase-multilingual-mpnet-base-v2")
+    embedding_model = os.getenv("OLLAMA_EMBEDDING_MODEL", "paraphrase-multilingual-mpnet-base-v2")
+    fallback_model = os.getenv("FALLBACK_MODEL", "bge-m3")
     
     try:
         embedding_function = ef.OllamaEmbeddingFunction(model_name=embedding_model)

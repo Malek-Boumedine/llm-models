@@ -25,6 +25,7 @@ class Message(SQLModel, table=True):
     message_id: Optional[int] = Field(default=None, primary_key=True)
     message: str
     message_date: datetime = Field(default_factory=datetime.now)
+    message_type: str = Field(default="user")  # "user" ou "assistant"
     user_id: int = Field(foreign_key="user.user_id")
     conversation_id: Optional[int] = Field(default=None, foreign_key="conversation.conversation_id")
 

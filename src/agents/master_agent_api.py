@@ -1,6 +1,5 @@
 from langgraph.graph import StateGraph, START, END
 from typing import TypedDict, Optional
-from src.agents.web_agent import WebAgent
 from src.agents.conventions_collectives_agent import ConventionsCollectivesAgent
 from src.agents.droit_travail_agent import DroitTravailAgent
 from langchain_ollama import ChatOllama
@@ -9,10 +8,15 @@ from langchain_perplexity import ChatPerplexity
 import os
 from langgraph.checkpoint.memory import MemorySaver
 from dotenv import load_dotenv
+import warnings
+
+
+warnings.filterwarnings("ignore")
+
 
 load_dotenv()
 
-# Structure de l'état améliorée
+# Structure de l'état simplifiée
 class MasterState(TypedDict):
     user_query: str
     droit_travail_response: str
@@ -22,43 +26,43 @@ class MasterState(TypedDict):
     cc_identified: Optional[str]
     cc_response: str
     cc_confidence: str
-    web_fallback_used: bool
-    web_response: str
     final_response: str
     confidence_level: str
 
 class APIMasterAgent:
-    """Master Agent API optimisé avec prompts améliorés"""
+    """Master Agent simplifié utilisant uniquement les 2 agents spécialisés"""
     
     def __init__(self, model_type=None):
         # Configuration du modèle
-        self.model_type = model_type or os.getenv("MODEL_TYPE", "local")
+        self.model_type = model_type or os.getenv("MODEL_TYPE", "groq")  # Groq par défaut
         self.llm = self._initialize_llm()
         
-        # Agents spécialisés
-        self.web_agent = WebAgent()
+        # Agents spécialisés (seulement 2)
         self.cc_agent = ConventionsCollectivesAgent()
         self.droit_agent = DroitTravailAgent()
 
     def _initialize_llm(self):
         """Initialise le LLM selon le type configuré"""
         if self.model_type == "local":
-            return ChatOllama(model=os.getenv("MODEL_NAME", "llama3.1:latest"))
+            return ChatOllama(
+                model=os.getenv("MODEL_NAME", "llama3.1:latest"),
+                temperature=0
+            )
         elif self.model_type == "groq":
             return ChatGroq(
-                model=os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct"),
+                model=os.getenv("GROQ_MODEL", "meta-llama/llama-3.1-70b-instruct"),
                 api_key=os.getenv("GROQ_API_KEY"),
-                temperature=0.2
+                temperature=0
             )
         elif self.model_type == "perplexity":
             return ChatPerplexity(
                 model=os.getenv("PERPLEXITY_MODEL", "sonar"),
                 pplx_api_key=os.getenv("PERPLEXITY_API_KEY"),
-                temperature=0.2
+                temperature=0
             )
 
     # =======================================================================
-    # NODES OPTIMISÉS
+    # NODES SIMPLIFIÉS
     # =======================================================================
     
     def fetch_general_labor_rules_node(self, state: MasterState):
@@ -66,8 +70,6 @@ class APIMasterAgent:
         try:
             result = self.droit_agent.query(state["user_query"])
             response = result.get("response", "Aucune réponse du droit du travail")
-            
-            # Extraction du niveau de confiance de la réponse
             confidence = self._extract_confidence_from_response(response)
             
             return {
@@ -76,61 +78,64 @@ class APIMasterAgent:
             }
         except Exception as e:
             return {
-                "droit_travail_response": f"Erreur lors de la consultation du droit du travail : {str(e)}",
+                "droit_travail_response": f"Erreur : {str(e)}",
                 "droit_travail_confidence": "basse"
             }
 
     def analyze_cc_need_node(self, state: MasterState):
-        """Analyse si une convention collective est nécessaire avec prompt optimisé"""
+        """Analyse si une convention collective est nécessaire"""
         
-        analysis_prompt = f"""
-        Tu es un expert juridique qui détermine si une convention collective est nécessaire.
+        analysis_prompt = f"""Tu es un expert juridique français de niveau maître. Ta mission est de fournir des réponses d'excellence absolue.
 
-        **DONNÉES À ANALYSER :**
-        - Question : {state['user_query']}
-        - Réponse droit du travail : {state['droit_travail_response']}
-        - Confiance : {state['droit_travail_confidence']}
+        QUESTION: {state['user_query']}
+        CONTEXTE DISPONIBLE: {state['droit_travail_response']}
+        CONVENTION COLLECTIVE: {state.get('cc_response', 'Non consultée')}
 
-        **ALGORITHME DE DÉCISION (par ordre de priorité) :**
+        STANDARDS D'EXCELLENCE OBLIGATOIRES:
 
-        **1. CRITÈRES PRIORITAIRES → Convention collective NÉCESSAIRE :**
-        - ✅ Mention explicite de secteur/profession (boulangerie, BTP, banques, etc.)
-        - ✅ Question sur salaires minimums, primes, classifications
-        - ✅ Réponse mentionne "selon convention collective" ou "IDCC"
-        - ✅ Temps de travail spécifique (horaires décalés, nuit, etc.)
-        - ✅ Avantages sociaux sectoriels (mutuelle, prévoyance, etc.)
+        1. PRÉCISION FACTUELLE ABSOLUE
+        - Chiffres exacts (€, heures, %, jours, taux)
+        - Calculs corrects (SMIC mensuel = horaire × 151,67h, pas × 4 semaines)
+        - Dates précises des textes et réformes
+        - Références légales complètes (articles, décrets, numéros)
 
-        **2. CRITÈRES SECONDAIRES → Évaluation contextuelle :**
-        - ⚠️ Confiance droit du travail < 0.8
-        - ⚠️ Entreprise/employeur spécifique mentionné
-        - ⚠️ Réponse générale mais secteur implicite détectable
+        2. CALCULS ET FORMULES EXACTES
+        - Durées: heures réglementaires, majorations, repos
+        - Montants: salaires, indemnités, primes (brut/net si pertinent)
+        - Taux: majoration heures sup (25%, 50%), congés payés (10%)
+        - Délais: préavis, prescription, procédures
 
-        **3. CRITÈRES D'EXCLUSION → Convention collective NON NÉCESSAIRE :**
-        - ❌ SMIC national, durée légale 35h
-        - ❌ Procédures générales (licenciement, démission)
-        - ❌ Congés légaux minimums (5 semaines)
-        - ❌ Règles sécurité générales
-        - ❌ Réponse complète ET confiance > 0.8
+        3. HIÉRARCHIE JURIDIQUE RESPECTÉE
+        - Code du travail (base légale minimum)
+        - Convention collective (si plus favorable)
+        - Accord d'entreprise (si plus favorable encore)
+        - Jurisprudence récente si pertinente
 
-        **INSTRUCTIONS D'ANALYSE :**
-        1. Vérifie d'abord les critères prioritaires (ordre d'importance)
-        2. Si aucun critère prioritaire → évalue les critères secondaires
-        3. Si critères d'exclusion → réponds NON directement
-        4. En cas de doute → privilégie OUI (principe de précaution)
+        4. STRUCTURE DE RÉPONSE PROFESSIONNELLE
+        - Réponse directe en première ligne
+        - Montants/durées/taux en chiffres clairs
+        - Base légale précise (article + référence)
+        - Conditions d'application si nécessaires
+        - Exceptions ou cas particuliers
 
-        **FORMAT DE RÉPONSE OBLIGATOIRE :**
-        "OUI" ou "NON" + justification en 1 phrase précise avec le critère utilisé.
+        5. GESTION DE L'INCERTITUDE
+        - Si données manquantes: "Information non disponible dans mes sources"
+        - Si estimation: "Estimation basée sur [source], à vérifier officiellement"
+        - Si évolution récente: "Sous réserve des dernières modifications"
 
-        **EXEMPLES :**
-        - "OUI - Secteur boulangerie mentionné (critère prioritaire)"
-        - "NON - Question générale sur congés légaux (critère d'exclusion)"
-        - "OUI - Confiance faible 0.6 nécessite vérification sectorielle"
-        """
+        EXEMPLE D'EXCELLENCE:
+        Question SMIC → "11,27€/heure brut depuis le 1er janvier 2025. Mensuel: 1 709,85€ brut (151,67h). Base: Art. L.3231-1 Code du travail, décret n°2024-963."
+
+        Question Heures sup → "Majoration 25% pour heures 36-43, 50% au-delà. Base: Art. L.3121-22 Code du travail. Calcul: salaire horaire × 1,25 ou 1,50."
+
+        CONSIGNE FINALE: Réponds avec l'excellence d'un consultant juridique senior. Précision absolue, structure claire, références exactes.
+
+        RÉPONSE:"""
         
         try:
             response = self.llm.invoke(analysis_prompt)
             analysis = response.content.strip()
-            needs_cc = "OUI" in analysis.upper()[:10]  # Vérifie dans les 10 premiers caractères
+            needs_cc = "OUI" in analysis.upper()[:10]
             
             return {
                 "needs_cc": needs_cc,
@@ -142,89 +147,18 @@ class APIMasterAgent:
                 "cc_analysis": f"Erreur d'analyse : {str(e)}"
             }
 
-    def identify_cc_node(self, state: MasterState):
-        """Identifie la convention collective avec prompt optimisé"""
-        
-        identification_prompt = f"""
-        Identifier la convention collective applicable pour cette question :
-
-        QUESTION : {state['user_query']}
-        ANALYSE : {state['cc_analysis']}
-
-        **Méthode d'identification :**
-        1. Extraire les éléments clés : secteur, entreprise, profession
-        2. Identifier l'IDCC correspondant
-        3. Vérifier que la convention est étendue
-
-        **Éléments à rechercher :**
-        - Nom exact de l'entreprise ou secteur
-        - Code APE si mentionné
-        - Profession spécifique
-        - Effectifs de l'entreprise
-        - Activité principale
-
-        **Conventions courantes :**
-        - CAF/CPAM/URSSAF → IDCC 218 (Organismes de sécurité sociale)
-        - Commerce → IDCC 3305 (Commerce de détail)
-        - BTP → IDCC 1597 (Bâtiment)
-        - Banques → IDCC 2120 (Banques)
-        - Métallurgie → IDCC 3248 (Métallurgie)
-
-        **Format de réponse strict :**
-        IDCC : [Numéro]
-        Nom : [Nom complet de la convention]
-        Secteur : [Secteur d'activité]
-        Pertinence : [Pourquoi cette convention s'applique]
-
-        Si aucune convention identifiable :
-        "CONVENTION NON IDENTIFIABLE - Éléments manquants : [liste des éléments nécessaires]"
-        """
-
-        try:
-            # Utilisation de l'agent web pour identifier la convention
-            web_result = self.web_agent.query(identification_prompt)
-            
-            if web_result.get("success", False) and self._is_valid_cc_response(web_result["response"]):
-                cc_identified = web_result["response"]
-            else:
-                # Fallback avec une recherche directe
-                cc_identified = self._fallback_cc_identification(state["user_query"])
-
-            # Validation automatique
-            if self._auto_validate_cc(cc_identified):
-                return {
-                    "cc_identified": cc_identified
-                }
-            else:
-                return {
-                    "cc_identified": None,
-                    "needs_cc": False
-                }
-                
-        except Exception as e:
-            return {
-                "cc_identified": None,
-                "needs_cc": False
-            }
-
     def fetch_cc_rules_node(self, state: MasterState):
-        """Récupère les règles de la convention collective avec prompt optimisé"""
+        """Récupère les règles de la convention collective"""
         
+        # Construction d'une query optimisée pour l'agent CC
         cc_query = f"""
-        Rechercher les règles spécifiques de cette convention collective :
-
-        QUESTION INITIALE : {state['user_query']}
-        CONVENTION IDENTIFIÉE : {state['cc_identified']}
+        QUESTION ORIGINALE : {state['user_query']}
+        ANALYSE : {state['cc_analysis']}
         
-        **Instructions spécifiques :**
-        - Utilise le format de réponse standardisé avec IDCC, articles précis
-        - Vérifie les métadonnées pour confirmer l'IDCC
-        - Indique le niveau de certitude
-        - Précise si la règle est plus favorable que le Code du travail
-        
-        Applique ton prompt système pour la précision juridique.
+        Recherche les règles spécifiques des conventions collectives pour cette question.
+        Utilise ton format de réponse standardisé avec ÉTAPES.
         """
-
+        
         try:
             result = self.cc_agent.query(cc_query)
             response = result.get("response", "Aucune règle conventionnelle trouvée")
@@ -236,84 +170,31 @@ class APIMasterAgent:
             }
         except Exception as e:
             return {
-                "cc_response": f"Erreur lors de la consultation des conventions : {str(e)}",
+                "cc_response": f"Erreur conventions : {str(e)}",
                 "cc_confidence": "basse"
             }
 
-    def web_fallback_node(self, state: MasterState):
-        """Utilise l'agent web comme fallback si confiance faible"""
-        
-        web_query = f"""
-        Rechercher des informations officielles récentes sur :
-
-        QUESTION : {state['user_query']}
-        
-        Priorité aux sources gouvernementales françaises (.gouv.fr, Légifrance).
-        Cherche des actualités, réformes récentes ou précisions officielles.
-        """
-        
-        try:
-            result = self.web_agent.query(web_query)
-            return {
-                "web_fallback_used": True,
-                "web_response": result.get("response", "Aucune information web trouvée")
-            }
-        except Exception as e:
-            return {
-                "web_fallback_used": True,
-                "web_response": f"Erreur de recherche web : {str(e)}"
-            }
-
     def compile_final_response_node(self, state: MasterState):
-        """Compile la réponse finale avec prompt de synthèse optimisé"""
+        """Compile la réponse finale"""
         
-        compilation_prompt = f"""
-        Compiler une réponse juridique complète et fiable :
+        compilation_prompt = f"""Tu es un assistant juridique français. Réponds de façon directe et factuelle.
 
-        QUESTION : {state['user_query']}
-        DROIT DU TRAVAIL : {state['droit_travail_response']}
-        CONFIANCE DT : {state['droit_travail_confidence']}
-        CONVENTION COLLECTIVE : {state.get('cc_response', 'Non applicable')}
-        CONFIANCE CC : {state.get('cc_confidence', 'Non applicable')}
-        RECHERCHE WEB : {state.get('web_response', 'Non utilisée')}
+        QUESTION: {state['user_query']}
+        CONTEXTE: {state['droit_travail_response']}
 
-        **Objectif :** Synthèse claire et hiérarchisée
+        RÈGLES:
+        - Donne des chiffres précis (montants, durées, taux)
+        - Si tu ne connais pas exactement, donne ta meilleure estimation
+        - Sois direct, pas de formules creuses
+        - Structure simple: Réponse + Base légale + Montant/Durée si applicable
 
-        **Structure obligatoire :**
-        📋 **RÉPONSE JURIDIQUE COMPLÈTE**
+        EXEMPLE SMIC: "Le SMIC horaire est de 11,88€ brut (estimation 2025). Base: Articles L.3231-1 Code du travail."
 
-        ⚖️ **RÈGLE GÉNÉRALE (Code du travail) :**
-        [Synthèse claire de la réponse droit du travail]
-
-        🏢 **RÈGLE SPÉCIFIQUE (Convention collective) :**
-        [Synthèse de la réponse convention collective SI applicable]
-
-        🌐 **INFORMATIONS COMPLÉMENTAIRES :**
-        [Informations web SI utilisées]
-
-        🎯 **RÈGLE APPLICABLE :**
-        [Quelle règle s'applique en priorité et pourquoi]
-
-        📊 **NIVEAU DE CONFIANCE :** [HAUTE/MOYENNE/BASSE]
-
-        ⚠️ **RECOMMANDATIONS :**
-        - Vérifier l'IDCC de votre entreprise
-        - Consulter votre convention collective complète
-        - En cas de doute, consulter un professionnel du droit
-
-        **Instructions :**
-        - Hiérarchise les règles (convention > loi si plus favorable)
-        - Indique clairement quelle règle s'applique
-        - Signale les cas d'incertitude
-        - Reste factuel et précis
-        - Évalue la confiance globale
-        """
+        Réponds maintenant:"""
         
         try:
             response = self.llm.invoke(compilation_prompt)
             compiled_response = response.content
-            
-            # Évaluation de la confiance globale
             overall_confidence = self._evaluate_overall_confidence(state)
             
             return {
@@ -321,21 +202,30 @@ class APIMasterAgent:
                 "confidence_level": overall_confidence
             }
         except Exception as e:
-            # Fallback : compilation simple
-            fallback_response = self._create_fallback_response(state)
+            # Réponse de fallback simple
+            fallback = f"""🏛️ **RÉPONSE JURIDIQUE**
+
+⚖️ **RÈGLE GÉNÉRALE :**
+{state['droit_travail_response']}
+
+⚠️ **Avertissement :** Erreur lors de la compilation. Consultez un professionnel du droit."""
+            
             return {
-                "final_response": fallback_response,
+                "final_response": fallback,
                 "confidence_level": "basse"
             }
 
     # =======================================================================
-    # MÉTHODES UTILITAIRES AMÉLIORÉES
+    # MÉTHODES UTILITAIRES
     # =======================================================================
     
     def _extract_confidence_from_response(self, response: str) -> str:
         """Extrait le niveau de confiance d'une réponse"""
+        if not response or response is None:
+            return "basse"
         response_lower = response.lower()
         
+        # Recherche directe de "certitude"
         if "certitude" in response_lower:
             if "haute" in response_lower:
                 return "haute"
@@ -345,11 +235,11 @@ class APIMasterAgent:
                 return "basse"
         
         # Analyse par indicateurs
-        confidence_indicators = ["idcc", "article", "précis", "exact"]
-        uncertainty_indicators = ["incertain", "possiblement", "peut-être"]
+        confidence_indicators = ["idcc", "article", "précis", "trouvé"]
+        uncertainty_indicators = ["non trouvé", "incertain", "peut-être", "aucune"]
         
-        has_confidence = any(indicator in response_lower for indicator in confidence_indicators)
-        has_uncertainty = any(indicator in response_lower for indicator in uncertainty_indicators)
+        has_confidence = any(ind in response_lower for ind in confidence_indicators)
+        has_uncertainty = any(ind in response_lower for ind in uncertainty_indicators)
         
         if has_confidence and not has_uncertainty:
             return "haute"
@@ -358,172 +248,87 @@ class APIMasterAgent:
         else:
             return "basse"
     
-    def _is_valid_cc_response(self, response: str) -> bool:
-        """Valide si la réponse contient une convention collective valide"""
-        indicators = ["IDCC", "convention collective", "nom :", "secteur :"]
-        return any(indicator.lower() in response.lower() for indicator in indicators)
-    
-    def _auto_validate_cc(self, cc_response: str) -> bool:
-        """Validation automatique améliorée de la convention collective"""
-        if not cc_response or len(cc_response.strip()) < 20:
-            return False
-        
-        # Vérifications positives
-        positive_indicators = [
-            "idcc" in cc_response.lower(),
-            "convention" in cc_response.lower(),
-            any(f"idcc {num}" in cc_response.lower() for num in ["218", "3305", "1597", "2120", "3248"])
-        ]
-        
-        # Vérifications négatives
-        negative_indicators = [
-            "non identifiable" in cc_response.lower(),
-            "aucune convention" in cc_response.lower(),
-            "impossible" in cc_response.lower(),
-            "éléments manquants" in cc_response.lower()
-        ]
-        
-        return any(positive_indicators) and not any(negative_indicators)
-    
-    def _fallback_cc_identification(self, query: str) -> str:
-        """Identification de fallback basée sur mots-clés"""
-        query_lower = query.lower()
-        
-        # Mapping simplifié
-        cc_mapping = {
-            "caf": "IDCC 218 - Convention collective des organismes de sécurité sociale",
-            "cpam": "IDCC 218 - Convention collective des organismes de sécurité sociale",
-            "urssaf": "IDCC 218 - Convention collective des organismes de sécurité sociale",
-            "commerce": "IDCC 3305 - Convention collective du commerce de détail",
-            "btp": "IDCC 1597 - Convention collective du bâtiment",
-            "banque": "IDCC 2120 - Convention collective des banques",
-            "métallurgie": "IDCC 3248 - Convention collective de la métallurgie"
-        }
-        
-        for keyword, cc in cc_mapping.items():
-            if keyword in query_lower:
-                return cc
-        
-        return "CONVENTION NON IDENTIFIABLE - Secteur non spécifié"
-    
     def _evaluate_overall_confidence(self, state: MasterState) -> str:
         """Évalue la confiance globale de la réponse"""
         dt_conf = state.get("droit_travail_confidence", "basse")
         cc_conf = state.get("cc_confidence", "non applicable")
         
-        if dt_conf == "haute" and (cc_conf == "haute" or cc_conf == "non applicable"):
+        # Logique simplifiée
+        if dt_conf == "haute" and (cc_conf == "haute" or not state["needs_cc"]):
             return "haute"
         elif dt_conf in ["haute", "moyenne"] and cc_conf in ["haute", "moyenne", "non applicable"]:
             return "moyenne"
         else:
             return "basse"
-    
-    def _create_fallback_response(self, state: MasterState) -> str:
-        """Crée une réponse de fallback en cas d'erreur"""
-        return f"""📋 **RÉPONSE JURIDIQUE**
-
-⚖️ **RÈGLE GÉNÉRALE :**
-{state['droit_travail_response']}
-
-⚠️ **AVERTISSEMENT :** Réponse compilée automatiquement. Pour des décisions juridiques importantes, consultez un professionnel du droit.
-"""
 
     # =======================================================================
-    # ROUTING LOGIC AMÉLIORÉ
+    # ROUTING SIMPLIFIÉ
     # =======================================================================
     
     def route_after_analysis(self, state: MasterState) -> str:
-        """Route après analyse avec gestion de la confiance"""
-        if state["needs_cc"]:
-            return "identify_cc"
-        elif state["droit_travail_confidence"] == "basse":
-            return "web_fallback"
-        else:
-            return "compile_final_response"
-
-    def route_after_cc_identification(self, state: MasterState) -> str:
-        """Route après identification CC"""
-        if state.get("cc_identified") and state["needs_cc"]:
-            return "fetch_cc_rules"
-        elif state["droit_travail_confidence"] == "basse":
-            return "web_fallback"
-        else:
-            return "compile_final_response"
-    
-    def route_after_cc_rules(self, state: MasterState) -> str:
-        """Route après récupération des règles CC"""
-        if (state["droit_travail_confidence"] == "basse" and 
-            state.get("cc_confidence", "basse") == "basse"):
-            return "web_fallback"
-        else:
-            return "compile_final_response"
+        """Route après analyse du besoin de convention collective"""
+        return "fetch_cc_rules" if state["needs_cc"] else "compile_final_response"
 
     # =======================================================================
-    # CONSTRUCTION DU WORKFLOW OPTIMISÉ
+    # CONSTRUCTION DU WORKFLOW SIMPLIFIÉ
     # =======================================================================
     
     def build(self):
-        """Construit le workflow API optimisé"""
+        """Construit le workflow simplifié"""
         workflow = StateGraph(MasterState)
         
-        # Ajout des nodes
+        # Nodes simplifiés (seulement 4)
         workflow.add_node("fetch_general_rules", self.fetch_general_labor_rules_node)
         workflow.add_node("analyze_cc_need", self.analyze_cc_need_node)
-        workflow.add_node("identify_cc", self.identify_cc_node)
         workflow.add_node("fetch_cc_rules", self.fetch_cc_rules_node)
-        workflow.add_node("web_fallback", self.web_fallback_node)
         workflow.add_node("compile_final_response", self.compile_final_response_node)
         
-        # Définition du flux optimisé
+        # Flux linéaire simplifié
         workflow.add_edge(START, "fetch_general_rules")
         workflow.add_edge("fetch_general_rules", "analyze_cc_need")
         
+        # Route conditionnelle unique
         workflow.add_conditional_edges(
             "analyze_cc_need",
             self.route_after_analysis,
             {
-                "identify_cc": "identify_cc",
-                "web_fallback": "web_fallback",
-                "compile_final_response": "compile_final_response"
-            }
-        )
-        
-        workflow.add_conditional_edges(
-            "identify_cc",
-            self.route_after_cc_identification,
-            {
                 "fetch_cc_rules": "fetch_cc_rules",
-                "web_fallback": "web_fallback",
                 "compile_final_response": "compile_final_response"
             }
         )
         
-        workflow.add_conditional_edges(
-            "fetch_cc_rules",
-            self.route_after_cc_rules,
-            {
-                "web_fallback": "web_fallback",
-                "compile_final_response": "compile_final_response"
-            }
-        )
-        
-        workflow.add_edge("web_fallback", "compile_final_response")
+        workflow.add_edge("fetch_cc_rules", "compile_final_response")
         workflow.add_edge("compile_final_response", END)
         
-        # Compilation avec mémoire
+        # Compilation
         memory = MemorySaver()
         return workflow.compile(checkpointer=memory)
 
     # =======================================================================
-    # MÉTHODE D'INTERFACE SIMPLIFIÉE
+    # INTERFACE API SIMPLIFIÉE
     # =======================================================================
     
-    def query(self, user_query: str, thread_id: str = "default") -> dict:
-        """Interface simplifiée pour l'API"""
+    def query(self, user_query: str, conversation_history: list = None, thread_id: str = "default") -> dict:
+        """Interface simplifiée pour l'API avec mémoire conversationnelle"""
         app = self.build()
         
+        # 🧠 INTÉGRATION MÉMOIRE : Formatage contexte conversationnel
+        enhanced_query = user_query
+        if conversation_history and len(conversation_history) > 0:
+            # Prendre les 5 derniers échanges pour le contexte
+            recent_history = conversation_history[-5:]
+            
+            context = "\n--- CONTEXTE CONVERSATIONNEL PRÉCÉDENT ---\n"
+            for msg in recent_history:
+                role = "Utilisateur" if msg["role"] == "user" else "Assistant"
+                content = msg["content"][:150] + "..." if len(msg["content"]) > 150 else msg["content"]
+                context += f"{role}: {content}\n"
+            context += "--- FIN CONTEXTE ---\n\nQUESTION ACTUELLE: "
+            
+            enhanced_query = context + user_query
+        
         initial_state = {
-            "user_query": user_query,
+            "user_query": enhanced_query,
             "droit_travail_response": "",
             "droit_travail_confidence": "",
             "needs_cc": False,
@@ -531,8 +336,6 @@ class APIMasterAgent:
             "cc_identified": None,
             "cc_response": "",
             "cc_confidence": "",
-            "web_fallback_used": False,
-            "web_response": "",
             "final_response": "",
             "confidence_level": ""
         }
@@ -544,44 +347,45 @@ class APIMasterAgent:
             
             return {
                 "success": True,
-                "response": final_state.get("final_response", "Erreur lors de la génération"),
-                "confidence": final_state.get("confidence_level", "basse"),
-                "cc_used": bool(final_state.get("cc_identified")),
-                "web_used": final_state.get("web_fallback_used", False),
-                "thread_id": thread_id
+                "response": final_state.get("final_response", "Erreur"),
+                # 🔥 CONFIDENCE SUPPRIMÉ COMPLÈTEMENT
+                "cc_used": bool(final_state.get("cc_response") and 
+                            "non consultée" not in final_state.get("cc_response", "")),
+                "thread_id": thread_id,
+                "memory_used": len(conversation_history) if conversation_history else 0
             }
             
         except Exception as e:
             return {
                 "success": False,
                 "error": str(e),
-                "response": "Erreur lors du traitement de la demande",
-                "confidence": "basse"
+                "response": "Erreur lors du traitement"
             }
 
 # =======================================================================
-# TEST AMÉLIORÉ
+# TEST SIMPLIFIÉ
 # =======================================================================
 
-def test_optimized_agent():
-    """Test de l'agent optimisé"""
+def test_simple_agent():
+    """Test de l'agent simplifié"""
     agent = APIMasterAgent()
     
-    test_cases = [
-        "Quel est le SMIC en France ?",
-        "Quelle est la prime d'ancienneté à la CAF ?",
-        "Nouveautés du code du travail en 2025"
+    test_questions = [
+        "Quel est le montant exact en euros du SMIC en France depuis janvier 2025 ?",
+        "Quelle est la majoration des heures de nuit en boulangerie ?",
+        "Durée du préavis de démission ?"
     ]
     
-    for question in test_cases:
-        print(f"\n🔍 Test : {question}")
+    for question in test_questions:
+        print(f"\n📋 Test : {question}")
         result = agent.query(question)
         
         if result["success"]:
-            print(f"✅ Succès - Confiance: {result['confidence']}")
-            print(f"📄 Réponse: {result['response'][:200]}...")
+            print(f"✅ Confiance: {result['confidence']}")
+            print(f"🏢 CC utilisée: {result['cc_used']}")
+            print(f"📄 Réponse: {result['response'][:300]}...")
         else:
             print(f"❌ Erreur: {result['error']}")
 
 if __name__ == "__main__":
-    test_optimized_agent()
+    test_simple_agent()

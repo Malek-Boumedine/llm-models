@@ -23,7 +23,7 @@ def get_qdrant_client(client_host: str, logfile) -> QdrantClient | None:
 
 # ===================================================================================================
 
-def create_collection(client: QdrantClient, collection_name: str, embedding_function, logfile : str) -> str :
+def create_collection_qdrant(client: QdrantClient, collection_name: str, embedding_function, logfile : str) -> str :
     test_vector = embedding_function(["test"])[0]
     vector_size = len(test_vector)
 
@@ -36,7 +36,8 @@ def create_collection(client: QdrantClient, collection_name: str, embedding_func
                 on_disk=False,
                 m=24,
                 ef_construct=200,
-                max_indexing_threads=6
+                max_indexing_threads=6, 
+                QDRANT__SERVICE__CPU_ONLY=True
             ),
             optimizers_config=OptimizersConfigDiff(
                 indexing_threshold=20000,    # Valeur normale (pas 0)
