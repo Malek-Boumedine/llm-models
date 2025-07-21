@@ -19,6 +19,7 @@ load_dotenv()
 # ================================================================================================
 
 model_type=os.getenv("MODEL_TYPE", "cloud")
+ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", None)
 
@@ -56,8 +57,11 @@ class BaseAgent:
         
         # Connexion à Qdrant
         with open(self.log_file_path, "w", encoding="utf-8") as logfile:
-            if model_type == "local" :
-                embedding_function = OllamaEmbeddings(model=self.embedding_model)
+            if self.model_type == "local" :
+                embedding_function = OllamaEmbeddings(
+                    base_url=ollama_host,
+                    model=self.embedding_model
+                )
             else : 
                 embedding_function = HuggingFaceEmbeddings(model_name = cloud_ollama_embedding_model)
             client = get_qdrant_client(self.qdrant_host, logfile)

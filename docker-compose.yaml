@@ -1,0 +1,81 @@
+services:
+  qdrant: 
+    build:
+      context: .
+      dockerfile: Dockerfile.qdrant
+    container_name: qdrant_container
+    ports: 
+      - 6333:6333
+      - 6334:6334
+    networks: 
+      - llm-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/collections"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  postgres: 
+    image: postgres:latest
+    container_name: postgres-chainlit-db
+    ports: 
+      - 5432:5432
+    networks: 
+      - llm-net
+    volumes: 
+      - postgres_data:/var/lib/postgresql/data 
+    env_file:
+      - .env
+    environment: 
+      - POSTGRES_USER=${CHAINLIT_DATABASE_USERNAME}
+      - POSTGRES_PASSWORD=${CHAINLIT_DATABASE_ROOT_PASSWORD}
+      - POSTGRES_DB=${CHAINLIT_DATABASE_NAME}
+
+  chainlit-init:
+    build:
+      context: .
+      dockerfile: Dockerfile.chainlit
+    container_name: chainlit-init
+    networks:
+      - llm-net
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+    environment:
+      - CHAINLIT_DATABASE_HOST=postgres
+    command: ["bash", "-c", "cd src/chainlit_app && uv run alembic upgrade head && cd /app && uv run python create_admin.py"]
+    restart: "no"
+
+  chainlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.chainlit  
+    container_name: chainlit_container
+    ports:
+      - 8000:8000  
+    networks:
+      - llm-net
+    depends_on:
+      - qdrant
+      - postgres
+    env_file:
+      - .env
+    environment:
+      - QDRANT_HOST=http://qdrant:6333       
+      - CHAINLIT_DATABASE_HOST=postgres     
+      - MODEL_TYPE=${MODEL_TYPE}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_MODEL=${GROQ_MODEL}
+      - CLOUD_OLLAMA_EMBEDDING_MODEL=${CLOUD_OLLAMA_EMBEDDING_MODEL}
+    restart: unless-stopped
+
+networks:
+  llm-net:
+    name: llm-net
+    driver: bridge
+
+volumes: 
+  postgres_data:
