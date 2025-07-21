@@ -5,7 +5,7 @@ from src.utils import load_pdf_files, chunk_and_insert_pdf_file, log_and_print, 
 
 from chromadb.utils import embedding_functions as ef
 from dotenv import load_dotenv
-from src.db.connection import get_qdrant_client, create_collection, disable_indexing, reactivate_indexing
+from src.db.connection import get_qdrant_client, create_collection_qdrant, disable_indexing, reactivate_indexing
 from datetime import datetime
 import re
 from typing import Dict, Optional, List
@@ -364,7 +364,7 @@ def ingestion_conventions_etendues(pdf_path: str = files_path, client_host: str 
         # Connexion base de données
         try:
             client = get_qdrant_client(client_host, logfile=logfile_handle)
-            create_collection(client=client, collection_name=collection_name, 
+            create_collection_qdrant(client=client, collection_name=collection_name, 
                             embedding_function=embedding_function, logfile=logfile_handle)
             disable_indexing(client=client, collection_name=collection_name, logfile=logfile_handle)
             log_and_print(f"✓ Collection '{collection_name}' configurée", logfile_handle)

@@ -6,7 +6,7 @@ from src.utils import (load_and_read_excel_files, load_pdf_files, chunk_and_inse
 
 from chromadb.utils import embedding_functions as ef
 from dotenv import load_dotenv
-from src.db.connection import get_qdrant_client, create_collection, disable_indexing, reactivate_indexing
+from src.db.connection import get_qdrant_client, create_collection_qdrant, disable_indexing, reactivate_indexing
 from datetime import datetime
 import re
 from typing import Dict, Optional, List
@@ -375,12 +375,12 @@ def ingest_idcc_code_travail(pdf_path: str = files_path) -> int:
             client = get_qdrant_client(client_host, logfile=logfile_handle)
             
             # Collection Code du travail
-            create_collection(client=client, collection_name=code_travail_col_name, 
+            create_collection_qdrant(client=client, collection_name=code_travail_col_name, 
                             embedding_function=embedding_function, logfile=logfile_handle)
             disable_indexing(client=client, collection_name=code_travail_col_name, logfile=logfile_handle)
             
             # Collection IDCC-APE
-            create_collection(client=client, collection_name=idcc_ape_col_name, 
+            create_collection_qdrant(client=client, collection_name=idcc_ape_col_name, 
                             embedding_function=embedding_function, logfile=logfile_handle)
             disable_indexing(client=client, collection_name=idcc_ape_col_name, logfile=logfile_handle)
             
@@ -512,7 +512,7 @@ def ingest_idcc_ape_excel(files_path: str = files_path, client_host: str = clien
         # Connexion base de données
         try:
             client = get_qdrant_client(client_host, logfile=logfile_handle)
-            create_collection(client=client, collection_name=idcc_ape_col_name, 
+            create_collection_qdrant(client=client, collection_name=idcc_ape_col_name, 
                             embedding_function=embedding_function, logfile=logfile_handle)
             disable_indexing(client=client, collection_name=idcc_ape_col_name, logfile=logfile_handle)
             log_and_print(f"✓ Collection '{idcc_ape_col_name}' configurée", logfile_handle)
