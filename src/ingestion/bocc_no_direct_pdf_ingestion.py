@@ -167,42 +167,28 @@ def get_bocc_no_direct_separators() -> List[str]:
 
 def validate_bocc_no_direct_content(text: str) -> bool:
     """
-    Validation spécifique du contenu BOCC sans lien direct
+    Validation simplifiée du contenu BOCC - Filtre seulement le bruit évident
     """
-    if not text or len(text.strip()) < 30:
+    if not text or len(text.strip()) < 40:
         return False
     
-    # Indicateurs spécifiques aux bulletins scrapés
-    bocc_indicators = [
-        r'convention\s+collective',
-        r'bulletin\s+officiel',
-        r'arr[eê]t[eé]',
-        r'd[eé]cret',
-        r'circulaire',
-        r'extension',
-        r'[eé]largissement',
-        r'agr[eé]ment',
-        r'd[eé]nonciation',
-        r'code\s+du\s+travail',
-        r'minist[eè]re',
-        r'direction\s+g[eé]n[eé]rale',
-        r'idcc',
-        r'classification',
-        r'salaire',
-        r'dur[eé]e\s+du\s+travail',
-        r'formation\s+professionnelle',
-        r'protection\s+sociale'
+    # Filtre seulement le bruit évident
+    noise_indicators = [
+        r'^\s*\d+\s*$',  # Pages contenant seulement un numéro
+        r'^\s*sommaire\s*$',  # Pages sommaire
+        r'^\s*index\s*$',  # Pages index
+        r'^\s*page\s*\d+\s*$',  # Page X
+        r'^\s*imprimer\s*$',  # Bouton imprimer
+        r'^\s*t[eé]l[eé]charger\s*$',  # Bouton télécharger
     ]
     
-    text_lower = text.lower()
-    indicator_count = 0
+    text_lower = text.lower().strip()
+    for noise in noise_indicators:
+        if re.match(noise, text_lower):
+            return False
     
-    for indicator in bocc_indicators:
-        if re.search(indicator, text_lower):
-            indicator_count += 1
-    
-    # Nécessite au moins 2 indicateurs pour validation
-    return indicator_count >= 2
+    return True  # ✅ Accepte tout le reste
+
 
 def preprocess_bocc_no_direct_text(text: str) -> str:
     """
@@ -252,8 +238,8 @@ def ingest_no_direct_pdf_bocc(pdf_path: str = files_path, client_host: str = cli
     separators = get_bocc_no_direct_separators()
     
     # Configuration chunks adaptée pour les bulletins scrapés
-    chunk_size = 1400  # Légèrement plus petit pour les textes scrapés
-    chunk_overlap = 220  # Plus de chevauchement pour compenser la fragmentation
+    chunk_size = 1200  # Légèrement plus petit pour les textes scrapés
+    chunk_overlap = 300  # Plus de chevauchement pour compenser la fragmentation
     
     logs_dir = "logs/bocc_logs/no_direct_pdf/"
     os.makedirs(logs_dir, exist_ok=True)
@@ -357,7 +343,17 @@ def ingest_no_direct_pdf_bocc(pdf_path: str = files_path, client_host: str = cli
             log_and_print(f"❌ Fichiers en erreur: {error_count}", logfile_handle)
             log_and_print(f"📊 Taux de succès: {success_count/(success_count+error_count)*100:.1f}%", logfile_handle)
             
-            return 1 if success_count > 0 else 0
+            if success_count > 0:
+                # Compter le total de chunks réellement insérés
+                try:
+                    collection_info = client.get_collection(collection_name)
+                    total_chunks = getattr(collection_info, 'points_count', 0)
+                    log_and_print(f"📊 Total chunks dans la collection: {total_chunks}", logfile_handle)
+                    return total_chunks
+                except:
+                    return success_count
+            else:
+                return 0
             
         except Exception as e:
             log_and_print(f"❌ Erreur critique durant le traitement: {e}", logfile_handle)

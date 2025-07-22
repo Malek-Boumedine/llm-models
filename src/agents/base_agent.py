@@ -177,6 +177,10 @@ Réponds en utilisant le contexte fourni."""
             else:
                 # Mode normal avec agent
                 config = {"configurable": {"thread_id": thread_id}}
+                if hasattr(self.agent.checkpointer, 'storage') and thread_id in self.agent.checkpointer.storage:
+                    messages = self.agent.checkpointer.storage[thread_id].get('messages', [])
+                    if len(messages) > 5:
+                        self.agent.checkpointer.storage[thread_id]['messages'] = messages[-5:]
                 result = self.agent.invoke({"messages": [("user", question)]}, config)
                 
                 return {

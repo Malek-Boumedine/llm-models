@@ -3,16 +3,23 @@ from qdrant_client.models import VectorParams, Distance, HnswConfigDiff, Optimiz
 from qdrant_client import QdrantClient
 from chromadb.utils import embedding_functions
 from src.utils import log_and_print
+import os
+from dotenv import load_dotenv
 
 
+load_dotenv()
 
-client_host = "http://localhost:6333"
+client_host = os.getenv("QDRANT_HOST", "http://localhost:6333")
+qdrant_api_key = os.getenv("QDRANT_API_KEY", None)
+
 
 # ===================================================================================================
 
 def get_qdrant_client(client_host: str, logfile) -> QdrantClient | None:
     try:
-        client = QdrantClient(client_host)
+        client = QdrantClient(
+            url=client_host, 
+            api_key=qdrant_api_key)
         return client
     except Exception as e:
         log_and_print(f"Erreur de connexion au client {client_host} : {e}", logfile)

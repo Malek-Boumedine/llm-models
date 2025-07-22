@@ -11,3 +11,6 @@ wheels/
 test.py
 test.ipynb
 BDD_TEST
+gcp_key.json
+.env.gcp
+qdrant_storage0

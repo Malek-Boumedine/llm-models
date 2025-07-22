@@ -194,73 +194,53 @@ def get_idcc_ape_separators() -> List[str]:
 
 def validate_code_travail_content(text: str) -> bool:
     """
-    Validation spécifique du contenu Code du travail
+    Validation simplifiée du contenu Code du travail - Filtre seulement le bruit évident
     """
     if not text or len(text.strip()) < 50:
         return False
     
-    # Indicateurs spécifiques au Code du travail
-    code_indicators = [
-        r"article\s+[LRD]\s*\d+",
-        r"code\s+du\s+travail",
-        r"employeur",
-        r"salari[eé]",
-        r"contrat\s+de\s+travail",
-        r"dur[eé]e\s+du\s+travail",
-        r"salaire",
-        r"r[eé]mun[eé]ration",
-        r"cong[eé]s\s+pay[eé]s",
-        r"formation\s+professionnelle",
-        r"hygi[eè]ne\s+et\s+s[eé]curit[eé]",
-        r"repr[eé]sentation\s+du\s+personnel",
-        r"n[eé]gociation\s+collective",
-        r"convention\s+collective",
-        r"licenciement",
-        r"d[eé]mission",
-        r"pr[eé]avis",
-        r"inspection\s+du\s+travail",
-        r"conseil\s+de\s+prud[\'']?hommes"
+    # Filtre seulement le bruit évident
+    noise_indicators = [
+        r'^\s*\d+\s*$',  # Pages contenant seulement un numéro
+        r'^\s*sommaire\s*$',  # Pages sommaire
+        r'^\s*index\s*$',  # Pages index
+        r'^\s*page\s*\d+\s*$',  # Page X
+        r'^\s*table\s+des\s+mati[eè]res\s*$',  # Table des matières
+        r'^\s*fin\s+du\s+document\s*$',  # Fin du document
     ]
     
-    text_lower = text.lower()
-    indicator_count = 0
+    text_lower = text.lower().strip()
+    for noise in noise_indicators:
+        if re.match(noise, text_lower):
+            return False
     
-    for indicator in code_indicators:
-        if re.search(indicator, text_lower):
-            indicator_count += 1
-    
-    # Nécessite au moins 2 indicateurs pour le Code du travail
-    return indicator_count >= 2
+    return True  # ✅ Accepte tout le reste
+
 
 def validate_idcc_ape_content(text: str) -> bool:
     """
-    Validation spécifique du contenu IDCC-APE
+    Validation simplifiée du contenu IDCC-APE - Filtre seulement le bruit évident
     """
-    if not text or len(text.strip()) < 20:
+    if not text or len(text.strip()) < 40:
         return False
     
-    # Indicateurs spécifiques aux données IDCC-APE
-    idcc_ape_indicators = [
-        r'\b\d{4}\b',  # Codes IDCC (4 chiffres)
-        r'\b\d{2}\.\d{2}[A-Z]?\b',  # Codes APE (XX.XXX)
-        r'idcc',
-        r'ape',
-        r'naf',
-        r'convention',
-        r'secteur',
-        r'activit[eé]',
-        r'branche',
-        r'classification'
+    # Filtre seulement le bruit évident
+    noise_indicators = [
+        r'^\s*\d+\s*$',  # Pages contenant seulement un numéro
+        r'^\s*sommaire\s*$',  # Pages sommaire
+        r'^\s*index\s*$',  # Pages index
+        r'^\s*page\s*\d+\s*$',  # Page X
+        r'^\s*en-t[eê]te\s*$',  # En-têtes
+        r'^\s*feuille\s*\d*\s*$',  # Feuille Excel
     ]
     
-    text_lower = text.lower()
-    indicator_count = 0
+    text_lower = text.lower().strip()
+    for noise in noise_indicators:
+        if re.match(noise, text_lower):
+            return False
     
-    for indicator in idcc_ape_indicators:
-        if re.search(indicator, text_lower):
-            indicator_count += 1
-    
-    return indicator_count >= 3
+    return True  # ✅ Accepte tout le reste
+
 
 def preprocess_code_travail_text(text: str) -> str:
     """
@@ -414,8 +394,8 @@ def ingest_idcc_code_travail(pdf_path: str = files_path) -> int:
                             file_path=file_path,
                             extra_metadata=metadata,
                             separators=code_travail_separators,
-                            chunk_size=1800,  # Plus grand pour les articles complets
-                            chunk_overlap=350  # Overlap important pour les références croisées
+                            chunk_size=1000,  # Plus grand pour les articles complets
+                            chunk_overlap=250  # Overlap important pour les références croisées
                         )
                         
                         if result:
@@ -438,7 +418,7 @@ def ingest_idcc_code_travail(pdf_path: str = files_path) -> int:
                             file_path=file_path,
                             extra_metadata=metadata,
                             separators=idcc_separators,
-                            chunk_size=1000,  # Plus petit pour les listes
+                            chunk_size=800,  # Plus petit pour les listes
                             chunk_overlap=150
                         )
                         
@@ -555,7 +535,7 @@ def ingest_idcc_ape_excel(files_path: str = files_path, client_host: str = clien
                 chunks = split_texts(
                     text=processed_text,
                     separators=ape_idcc_separators,
-                    chunk_size=2000,  # Plus grand pour les données tabulaires
+                    chunk_size=800,  # Plus grand pour les données tabulaires
                     chunk_overlap=200
                 )
                 

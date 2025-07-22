@@ -9,6 +9,7 @@ from chromadb.utils import embedding_functions
 from typing import TextIO, List, Dict, Optional
 import re
 import unicodedata
+import time
 
 
 
@@ -197,8 +198,8 @@ def load_and_read_excel_files(path: str) -> List[Dict]:
 def split_texts(
     text: str, 
     separators: Optional[List[str]] = None, 
-    chunk_size: int = 1000, 
-    chunk_overlap: int = 150
+    chunk_size: int = 1200, 
+    chunk_overlap: int = 300
 ) -> List[str]:
     """
     Divise le texte en chunks optimisés pour le contenu juridique
@@ -250,6 +251,7 @@ def add_chunks_to_db(
         batch_size = 400
         idx = 1
         total_inserted = 0
+        base_id = int(time.time() * 1000)
         
         for i in range(0, len(chunks), batch_size):
             batch_chunks = chunks[i:i + batch_size]
@@ -281,7 +283,7 @@ def add_chunks_to_db(
                 payload = {
                     "text": chunk,
                     "source": file_name,
-                    "chunk_id": idx,
+                    "chunk_id": j,
                     "chunk_length": len(chunk),
                     "chunk_words": len(chunk.split())
                 }
@@ -294,12 +296,12 @@ def add_chunks_to_db(
                 
                 points.append(
                     PointStruct(
-                        id=idx,
+                        id=base_id + j,
                         vector=vector,
                         payload=payload
                     )
                 )
-                idx += 1
+                base_id += 1
             
             # Insertion batch avec gestion d'erreurs
             if points:
@@ -312,7 +314,7 @@ def add_chunks_to_db(
                     continue
         
         print(f"Total inséré: {total_inserted} chunks pour {file_name}")
-        return 1 if total_inserted > 0 else 0
+        return total_inserted
         
     except Exception as e:
         print(f"Erreur lors de l'ajout des chunks: {e}")
@@ -327,7 +329,7 @@ def chunk_and_insert_pdf_file(
     extra_metadata: Optional[Dict] = None, 
     separators: Optional[List[str]] = None, 
     chunk_size: int = 1200, 
-    chunk_overlap: int = 200
+    chunk_overlap: int = 300
 ) -> int:
     """
     Lit un PDF, crée des chunks optimisés et les insère dans la DB
@@ -395,9 +397,13 @@ def chunk_and_insert_pdf_file(
             file_name=file_name,
             embedding_function=embedding_function,
             extra_metadata=extra_metadata
-        )
-        
-        return success
+        )        
+        if success > 0:  
+            print(f"✅ {success} chunks insérés avec succès pour {file_name}")
+            return success  
+        else:
+            print(f"❌ Échec insertion chunks pour {file_name}")
+            return 0                
         
     except Exception as e:
         print(f"Erreur dans chunk_and_insert_pdf_file pour {file_path}: {e}")

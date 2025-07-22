@@ -14,6 +14,8 @@ test.ipynb
 .env
 BDD_TEST
 logs/
-create_admin.py
 qdrant_storage
 .env.chainlit
+.env.gcp
+gcp_key.json
+qdrant_storage0
