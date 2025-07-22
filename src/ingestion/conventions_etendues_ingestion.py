@@ -232,48 +232,23 @@ def get_convention_specific_separators() -> List[str]:
     return convention_separators
 
 def validate_convention_content(text: str) -> bool:
-    """
-    Validation spécifique du contenu des conventions collectives
-    """
     if not text or len(text.strip()) < 40:
         return False
     
-    # Indicateurs spécifiques aux conventions collectives
-    convention_indicators = [
-        r'convention\s+collective',
-        r'accord\s+collectif',
-        r'classification',
-        r'salaire',
-        r'r[eé]mun[eé]ration',
-        r'dur[eé]e\s+du\s+travail',
-        r'temps\s+de\s+travail',
-        r'cong[eé]s',
-        r'formation\s+professionnelle',
-        r'protection\s+sociale',
-        r'pr[eé]voyance',
-        r'retraite',
-        r'hygi[eè]ne\s+et\s+s[eé]curit[eé]',
-        r'conditions\s+de\s+travail',
-        r'repr[eé]sentation\s+du\s+personnel',
-        r'droit\s+syndical',
-        r'employeur',
-        r'salari[eé]',
-        r'contrat\s+de\s+travail',
-        r'licenciement',
-        r'd[eé]mission',
-        r'pr[eé]avis',
-        r'indemnit[eé]'
+    # Filtre seulement le bruit évident
+    noise_indicators = [
+        r'^\s*\d+\s*$',  # Pages contenant seulement un numéro
+        r'^\s*sommaire\s*$',  # Pages sommaire
+        r'^\s*index\s*$',  # Pages index
     ]
     
-    text_lower = text.lower()
-    indicator_count = 0
+    text_lower = text.lower().strip()
+    for noise in noise_indicators:
+        if re.match(noise, text_lower):
+            return False
     
-    for indicator in convention_indicators:
-        if re.search(indicator, text_lower):
-            indicator_count += 1
-    
-    # Nécessite au moins 3 indicateurs pour une convention
-    return indicator_count >= 3
+    return True
+
 
 def preprocess_convention_text(text: str) -> str:
     """
@@ -328,8 +303,8 @@ def ingestion_conventions_etendues(pdf_path: str = files_path, client_host: str 
     separators = get_convention_specific_separators()
     
     # Configuration chunks optimisée pour les conventions
-    chunk_size = 1600  # Plus grand pour capturer les articles complets
-    chunk_overlap = 300  # Overlap important pour la cohérence des références
+    chunk_size = 800  # Plus grand pour capturer les articles complets
+    chunk_overlap = 200  # Overlap important pour la cohérence des références
     
     logs_dir = "logs/conventions_etendues/"
     os.makedirs(logs_dir, exist_ok=True)
@@ -366,7 +341,7 @@ def ingestion_conventions_etendues(pdf_path: str = files_path, client_host: str 
             client = get_qdrant_client(client_host, logfile=logfile_handle)
             create_collection_qdrant(client=client, collection_name=collection_name, 
                             embedding_function=embedding_function, logfile=logfile_handle)
-            disable_indexing(client=client, collection_name=collection_name, logfile=logfile_handle)
+            # disable_indexing(client=client, collection_name=collection_name, logfile=logfile_handle)
             log_and_print(f"✓ Collection '{collection_name}' configurée", logfile_handle)
         except Exception as e:
             log_and_print(f"✗ Erreur configuration DB: {e}", logfile_handle)
@@ -379,7 +354,15 @@ def ingestion_conventions_etendues(pdf_path: str = files_path, client_host: str 
         try:
             for i, file_path in enumerate(pdf_documents, 1):
                 file_name = os.path.splitext(os.path.basename(file_path))[0]
-                
+
+                if i % 10 == 0:
+                    log_and_print(f"🔄 Reconnexion client Qdrant après {i} fichiers", logfile_handle)
+                    try:
+                        client.close()  # Ferme l'ancienne connexion
+                    except:
+                        pass
+                    client = get_qdrant_client(client_host, logfile=logfile_handle)  # Nouvelle connexion
+
                 log_and_print(f"\n{'='*60}", logfile_handle)
                 log_and_print(f"TRAITEMENT {i}/{len(pdf_documents)}: {file_name}", logfile_handle)
                 log_and_print(f"{'='*60}", logfile_handle)
@@ -424,7 +407,7 @@ def ingestion_conventions_etendues(pdf_path: str = files_path, client_host: str 
                     log_and_print(f"❌ Erreur traitement {file_name}: {e}", logfile_handle)
             
             # Réactivation de l'indexation
-            reactivate_indexing(client=client, collection_name=collection_name, logfile=logfile_handle)
+            # reactivate_indexing(client=client, collection_name=collection_name, logfile=logfile_handle)
             
             # Rapport final avec statistiques détaillées
             log_and_print(f"\n{'='*60}", logfile_handle)

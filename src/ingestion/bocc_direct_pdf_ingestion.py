@@ -133,35 +133,27 @@ def get_bocc_specific_separators() -> List[str]:
 
 def validate_bocc_content(text: str) -> bool:
     """
-    Validation spécifique du contenu BOCC
+    Validation simplifiée du contenu BOCC - Filtre seulement le bruit évident
     """
-    if not text or len(text.strip()) < 30:
+    if not text or len(text.strip()) < 40:
         return False
     
-    # Indicateurs de contenu BOCC valide
-    bocc_indicators = [
-        r'convention\s+collective',
-        r'arr[eê]t[eé]',
-        r'd[eé]cret',
-        r'circulaire',
-        r'extension',
-        r'[eé]largissement',
-        r'agr[eé]ment',
-        r'bulletin\s+officiel',
-        r'code\s+du\s+travail',
-        r'dur[eé]e\s+du\s+travail',
-        r'salaire',
-        r'cong[eé]s',
-        r'formation\s+professionnelle'
+    # Filtre seulement le bruit évident
+    noise_indicators = [
+        r'^\s*\d+\s*$',  # Pages contenant seulement un numéro
+        r'^\s*sommaire\s*$',  # Pages sommaire
+        r'^\s*index\s*$',  # Pages index
+        r'^\s*page\s*\d+\s*$',  # Page X
+        r'^\s*imprimer\s*$',  # Bouton imprimer
+        r'^\s*t[eé]l[eé]charger\s*$',  # Bouton télécharger
     ]
     
-    # Vérifier la présence d'au moins un indicateur
-    text_lower = text.lower()
-    for indicator in bocc_indicators:
-        if re.search(indicator, text_lower):
-            return True
+    text_lower = text.lower().strip()
+    for noise in noise_indicators:
+        if re.match(noise, text_lower):
+            return False
     
-    return False
+    return True  # ✅ Accepte tout le reste
 
 def preprocess_bocc_text(text: str) -> str:
     """
@@ -205,8 +197,8 @@ def ingest_direct_pdf_bocc(pdf_path: str = files_path, client_host: str = client
     separators = get_bocc_specific_separators()
     
     # Configuration chunks optimisée pour BOCC
-    chunk_size = 1500  # Plus grand pour capturer les articles complets
-    chunk_overlap = 250  # Plus de chevauchement pour la cohérence juridique
+    chunk_size = 1200  # Plus grand pour capturer les articles complets
+    chunk_overlap = 300  # Plus de chevauchement pour la cohérence juridique
     
     logs_dir = "logs/bocc_logs/direct_pdf/"
     os.makedirs(logs_dir, exist_ok=True)
@@ -309,7 +301,17 @@ def ingest_direct_pdf_bocc(pdf_path: str = files_path, client_host: str = client
             log_and_print(f"❌ Fichiers en erreur: {error_count}", logfile)
             log_and_print(f"📊 Taux de succès: {success_count/(success_count+error_count)*100:.1f}%", logfile)
             
-            return 1 if success_count > 0 else 0
+            if success_count > 0:
+                # Compter le total de chunks réellement insérés
+                try:
+                    collection_info = client.get_collection(collection_name)
+                    total_chunks = getattr(collection_info, 'points_count', 0)
+                    log_and_print(f"📊 Total chunks dans la collection: {total_chunks}", logfile)
+                    return total_chunks
+                except:
+                    return success_count
+            else:
+                return 0
             
         except Exception as e:
             log_and_print(f"❌ Erreur critique durant le traitement: {e}", logfile)
