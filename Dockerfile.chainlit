@@ -13,6 +13,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv venv && uv sync
 
+# Configuration HuggingFace pour embeddings cloud
 ENV HF_HOME=/root/.cache/huggingface
 RUN pip install sentence-transformers 
 RUN python -c "from sentence_transformers import SentenceTransformer; print('Téléchargement du modèle BAAI/bge-m3...'); model = SentenceTransformer('BAAI/bge-m3'); print('Modèle téléchargé avec succès')"
@@ -27,4 +28,5 @@ ENV CHAINLIT_HOST=0.0.0.0
 ENV CHAINLIT_PORT=8000
 EXPOSE 8000
 
+# Démarrage standard sans Ollama
 CMD ["uv", "run", "chainlit", "run", "src/chainlit_app/main.py", "--host", "0.0.0.0", "--port", "8000"]

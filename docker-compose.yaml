@@ -43,11 +43,12 @@ services:
     depends_on:
       - postgres
     env_file:
-      - .env
+      - .env.chainlit
     environment:
       - CHAINLIT_DATABASE_HOST=postgres
     command: ["bash", "-c", "cd src/chainlit_app && uv run alembic upgrade head && cd /app && uv run python create_admin.py"]
     restart: "no"
+
 
   chainlit:
     build:
@@ -62,15 +63,50 @@ services:
       - qdrant
       - postgres
     env_file:
-      - .env
+      - .env.chainlit
     environment:
-      - QDRANT_HOST=http://qdrant:6333       
-      - CHAINLIT_DATABASE_HOST=postgres     
+      - CHAINLIT_DATABASE_HOST=${CHAINLIT_DATABASE_HOST}
+      - CHAINLIT_DATABASE_PORT=${CHAINLIT_DATABASE_PORT}
+      - CHAINLIT_DATABASE_NAME=${CHAINLIT_DATABASE_NAME}
+      - CHAINLIT_DATABASE_USERNAME=${CHAINLIT_DATABASE_USERNAME}
+      - CHAINLIT_DATABASE_ROOT_PASSWORD=${CHAINLIT_DATABASE_ROOT_PASSWORD}
+      - CHAINLIT_AUTH_SECRET=${CHAINLIT_AUTH_SECRET}
+      - ADMIN_USERNAME=${ADMIN_USERNAME}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - QDRANT_HOST=${QDRANT_HOST}
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
       - MODEL_TYPE=${MODEL_TYPE}
+      - OLLAMA_HOST=${OLLAMA_HOST}
       - GROQ_API_KEY=${GROQ_API_KEY}
       - GROQ_MODEL=${GROQ_MODEL}
+      - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL}
+      - FALLBACK_MODEL=${FALLBACK_MODEL}
       - CLOUD_OLLAMA_EMBEDDING_MODEL=${CLOUD_OLLAMA_EMBEDDING_MODEL}
+      - CLOUD_FALLBACK_MODEL=${CLOUD_FALLBACK_MODEL}
     restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - llm-net
+    restart: unless-stopped
+  
+  grafana: 
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports: 
+      - 3000:3000
+    networks: 
+      - llm-net
+    restart: unless-stopped
+    volumes:
+      - grafana-data:/var/lib/grafana
 
 networks:
   llm-net:
@@ -79,3 +115,4 @@ networks:
 
 volumes: 
   postgres_data:
+  grafana-data:
