@@ -2,6 +2,7 @@
 import chainlit as cl
 import sys
 import os
+import time
 
 # Ajout du chemin racine
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -45,9 +46,7 @@ Je suis votre assistant spécialisé en **droit du travail français et conventi
 - 🏢 Conventions collectives étendues  
 - 📰 Bulletins officiels (BOCC)
 
-🆕 **Nouvelle session** - Chaque conversation est indépendante
-
-💬 **Posez vos questions juridiques dès maintenant !**""",
+💬 **Posez vos questions juridiques !**""",
         author="Assistant"
     ).send()
 
@@ -62,6 +61,7 @@ async def main(message: cl.Message):
         result = droit_travail_agent.query(message.content)
         
         if result.get("success"):
+            time.sleep(30)
             response = result.get("response", "Erreur de réponse")
             
             

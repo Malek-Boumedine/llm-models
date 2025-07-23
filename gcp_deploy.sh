@@ -12,7 +12,7 @@ KEY_FILE="gcp_key.json"
 CHAINLIT_APP_NAME="chainlit-app"
 ARTIFACTS_REPO_NAME="chainlit-repo"
 COMPUTE_INSTANCE="qdrant-vm"
-FIREWALL_RULME_NAME="allow-qdrant"
+FIREWALL_RULME_NAME="allow-qdrant-and-monitoring"
 
 POSTGRES_SERVER_NAME=chainlit-postgres
 CHAINLIT_DATABASE_PORT=$CHAINLIT_DATABASE_PORT
@@ -28,6 +28,9 @@ GROQ_API_KEY=$GROQ_API_KEY
 GROQ_MODEL=$GROQ_MODEL
 CLOUD_OLLAMA_EMBEDDING_MODEL=$CLOUD_OLLAMA_EMBEDDING_MODEL
 
+GRAFANA_ADMIN_PASSWORD=$GRAFANA_ADMIN_PASSWORD
+
+SSH_FLAGS="--ssh-flag=-o --ssh-flag=StrictHostKeyChecking=no --ssh-flag=-o --ssh-flag=UserKnownHostsFile=/dev/null --ssh-flag=-o --ssh-flag=LogLevel=ERROR"
 
 ######################################################################
 
@@ -35,13 +38,16 @@ CLOUD_OLLAMA_EMBEDDING_MODEL=$CLOUD_OLLAMA_EMBEDDING_MODEL
 echo "=================================================================================="
 echo "suppression des instances si elles existent"
 echo "=================================================================================="
+echo ""
+
+gcloud run services delete chainlit-app --region=europe-west1 --quiet || true
+gcloud run jobs delete chainlit-migrate --region=$REGION --quiet || true
+gcloud sql databases delete $CHAINLIT_DATABASE_NAME --instance=$POSTGRES_SERVER_NAME --quiet || true
 
 gcloud artifacts repositories delete $ARTIFACTS_REPO_NAME --location=$REGION --quiet || true
-gcloud sql databases delete $CHAINLIT_DATABASE_NAME --instance=$POSTGRES_SERVER_NAME --quiet || true
 gcloud sql instances delete $POSTGRES_SERVER_NAME --quiet || true
 gcloud compute instances delete $COMPUTE_INSTANCE --zone=$ZONE --quiet || true
 gcloud compute firewall-rules delete $FIREWALL_RULME_NAME --quiet || true
-gcloud run jobs delete chainlit-migrate --region=$REGION --quiet || true
 gcloud run services delete $CHAINLIT_APP_NAME --region=$REGION --quiet || true
 
 ######################################################################
@@ -50,6 +56,7 @@ gcloud run services delete $CHAINLIT_APP_NAME --region=$REGION --quiet || true
 echo "=================================================================================="
 echo "connexion au projet GCP et configuration"
 echo "=================================================================================="
+echo ""
 
 gcloud auth activate-service-account --key-file=$KEY_FILE
 
@@ -70,6 +77,7 @@ gcloud services enable secretmanager.googleapis.com
 echo "=================================================================================="
 echo "création dun dépot pour stocker les images docker"
 echo "=================================================================================="
+echo ""
 
 gcloud artifacts repositories create $ARTIFACTS_REPO_NAME \
   --repository-format=docker \
@@ -80,6 +88,7 @@ gcloud artifacts repositories create $ARTIFACTS_REPO_NAME \
 echo "=================================================================================="
 echo "création de l'instance SQLpostgres avec Cloud SQL"
 echo "=================================================================================="
+echo ""
 
 gcloud sql instances create $POSTGRES_SERVER_NAME \
   --database-version=POSTGRES_15 \
@@ -93,6 +102,7 @@ gcloud sql instances create $POSTGRES_SERVER_NAME \
 echo "=================================================================================="
 echo "création de la base de données"
 echo "=================================================================================="
+echo ""
 
 gcloud sql databases create $CHAINLIT_DATABASE_NAME --instance=$POSTGRES_SERVER_NAME
 
@@ -100,6 +110,7 @@ gcloud sql databases create $CHAINLIT_DATABASE_NAME --instance=$POSTGRES_SERVER_
 echo "=================================================================================="
 echo "création l'utilisateur de la base de données"
 echo "=================================================================================="
+echo ""
 
 gcloud sql users create $CHAINLIT_DATABASE_USERNAME --instance=$POSTGRES_SERVER_NAME --password=$CHAINLIT_DATABASE_ROOT_PASSWORD
 
@@ -111,6 +122,7 @@ CHAINLIT_DATABASE_HOST=$DB_IP
 echo "=================================================================================="
 echo "création  d'une VM pour Qdrant avec compute"
 echo "=================================================================================="
+echo ""
 
 gcloud compute instances create $COMPUTE_INSTANCE \
   --zone=$ZONE \
@@ -130,19 +142,22 @@ sleep 60
 echo "=================================================================================="
 echo "ouverture des ports nécessaires"
 echo "=================================================================================="
+echo ""
 
 gcloud compute firewall-rules create $FIREWALL_RULME_NAME \
-  --allow tcp:6333,tcp:6334 \
+  --allow tcp:6333,tcp:6334,tcp:3000,tcp:9090 \
   --source-ranges=0.0.0.0/0 \
-  --target-tags=qdrant-server
+  --target-tags=qdrant-server \
+  --description="Allow Qdrant access and monitoring with Grafana and Prometheus access"
+
 
 # installation de docker sur la VM et deploiement de Qdrant
 echo "=================================================================================="
 echo "installation de docker sur la VM et deploiement de Qdrant"
 echo "=================================================================================="
+echo ""
 
-gcloud compute ssh $COMPUTE_INSTANCE --zone=$ZONE --command="
-    curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh && sudo usermod -aG docker $USER"
+gcloud compute ssh $COMPUTE_INSTANCE --zone=$ZONE $SSH_FLAGS --command="sudo curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh && sudo usermod -aG docker \$(whoami)"
 gcloud compute instances reset $COMPUTE_INSTANCE --zone=$ZONE
 sleep 60
 
@@ -150,6 +165,7 @@ sleep 60
 echo "=================================================================================="
 echo "transfert des données Qdrant locales vers la VM"
 echo "=================================================================================="
+echo ""
 
 gcloud compute scp --recurse ./qdrant_storage $COMPUTE_INSTANCE:/home/$(whoami)/ --zone=$ZONE
 
@@ -157,18 +173,20 @@ gcloud compute scp --recurse ./qdrant_storage $COMPUTE_INSTANCE:/home/$(whoami)/
 echo "=================================================================================="
 echo "lancement du container qdrant sur la VM"
 echo "=================================================================================="
+echo ""
 
-gcloud compute ssh $COMPUTE_INSTANCE --zone=$ZONE --command="
+gcloud compute ssh $COMPUTE_INSTANCE --zone=$ZONE $SSH_FLAGS --command="
 sudo docker run -d \
     --name qdrant \
     -p 6333:6333 -p 6334:6334 \
-    -v ./qdrant_storage:/qdrant/storage \
+    -v /home/\$(whoami)/qdrant_storage:/qdrant/storage \
     -e QDRANT__SERVICE__API_KEY=$QDRANT_API_KEY \
     qdrant/qdrant:latest"
-
+    
 echo "=================================================================================="
 echo "construire et pousser l'appli sur Artifact Registry"
 echo "=================================================================================="
+echo ""
 
 # configurer l'authentification docker pour utiliser Artifact Registry
 gcloud auth configure-docker $REGION-docker.pkg.dev    
@@ -185,6 +203,7 @@ docker push $REGION-docker.pkg.dev/$PROJECT_ID/$ARTIFACTS_REPO_NAME/chainlit-app
 echo "=================================================================================="
 echo "migrations avant deploiement"
 echo "=================================================================================="
+echo ""
 
 # migrations avant deploiement
 gcloud run jobs create chainlit-migrate --region=$REGION \
@@ -200,6 +219,7 @@ gcloud run jobs execute chainlit-migrate --region=$REGION
 echo "=================================================================================="
 echo "déploiement chainlit"
 echo "=================================================================================="
+echo ""
 
 gcloud run deploy $CHAINLIT_APP_NAME \
   --image $REGION-docker.pkg.dev/$PROJECT_ID/$ARTIFACTS_REPO_NAME/chainlit-app:latest \
@@ -213,11 +233,80 @@ gcloud run deploy $CHAINLIT_APP_NAME \
   --allow-unauthenticated \
   --set-env-vars "MODEL_TYPE=$MODEL_TYPE,CHAINLIT_DATABASE_HOST=$CHAINLIT_DATABASE_HOST,CHAINLIT_DATABASE_PORT=$CHAINLIT_DATABASE_PORT,CHAINLIT_DATABASE_NAME=$CHAINLIT_DATABASE_NAME,CHAINLIT_DATABASE_USERNAME=$CHAINLIT_DATABASE_USERNAME,CHAINLIT_DATABASE_ROOT_PASSWORD=$CHAINLIT_DATABASE_ROOT_PASSWORD,QDRANT_HOST=$QDRANT_HOST,GROQ_API_KEY=$GROQ_API_KEY,GROQ_MODEL=$GROQ_MODEL,CLOUD_OLLAMA_EMBEDDING_MODEL=$CLOUD_OLLAMA_EMBEDDING_MODEL,QDRANT_API_KEY=$QDRANT_API_KEY,CHAINLIT_AUTH_SECRET=$CHAINLIT_AUTH_SECRET"
 
+# configuration monitoring
+echo "=================================================================================="
+echo "configuration monitoring"
+echo "=================================================================================="
+echo ""
+
+CHAINLIT_APP_URL=$(gcloud run services list --region=europe-west1 --filter="SERVICE:$CHAINLIT_APP_NAME" --format="value(URL)" | sed 's|https://||')
+
+gcloud compute ssh $COMPUTE_INSTANCE --zone=$ZONE $SSH_FLAGS --command="
+sudo mkdir -p /home/\$(whoami)/monitoring
+sudo tee /home/\$(whoami)/monitoring/prometheus.yml > /dev/null << EOF
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+  - job_name: 'qdrant'
+    static_configs:
+      - targets: ['localhost:6333']
+  - job_name: 'chainlit-app'
+    static_configs:
+      - targets: ['$CHAINLIT_APP_URL:443']
+    scheme: https
+EOF"
+sleep 30
+
+# deploiement de prometheus et grafana
+echo "=================================================================================="
+echo "deploiement de prometheus et grafana"
+echo "=================================================================================="
+echo ""
+
+gcloud compute ssh $COMPUTE_INSTANCE --zone=$ZONE $SSH_FLAGS --command="
+sudo docker run -d \
+  --name prometheus \
+  -p 9090:9090 \
+  -v /home/\$(whoami)/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml \
+  --restart unless-stopped \
+  prom/prometheus:latest"
+
+gcloud compute ssh $COMPUTE_INSTANCE --zone=$ZONE $SSH_FLAGS --command="
+sudo docker run -d \
+  --name grafana \
+  -p 3000:3000 \
+  -e GF_SECURITY_ADMIN_PASSWORD=$GRAFANA_ADMIN_PASSWORD \
+  --restart unless-stopped \
+  grafana/grafana:latest"
+
 # obtenir l'url publique de l'appli chainlit
 echo "=================================================================================="
 echo "url publique de l'appli chainlit"
 echo "=================================================================================="
+echo ""
 
 echo "L'application Chainlit est déployée et accessible à l'adresse :"
 echo
 gcloud run services list --region=europe-west1 --filter="SERVICE:$CHAINLIT_APP_NAME" --format="value(URL)"
+
+VM_IP=$(gcloud compute instances describe qdrant-vm --zone=europe-west1-b --format='value(networkInterfaces[0].accessConfigs[0].natIP)')
+
+echo "L'application Prometheus est déployée et accessible à l'adresse :"
+echo
+echo "http://$VM_IP:9090"
+
+echo "L'application Grafana est déployée et accessible à l'adresse :"
+echo
+echo "http://$VM_IP:3000"
+echo "login : admin"
+echo "password : $GRAFANA_ADMIN_PASSWORD"
+
+echo "=================================================================================="
+echo "FIN DU SCRIPT DE DEPLOIEMENT"
+echo "=================================================================================="
+
+
